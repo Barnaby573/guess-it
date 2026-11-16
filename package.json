@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "fetch-data": "node scripts/fetch-data.js"
+    "fetch-data": "node scripts/fetch-data.js",
+    "fetch-borders": "node scripts/fetch-borders.js",
+    "fetch-map": "node scripts/fetch-map.js"
   },
   "devDependencies": {
     "vite": "^7.0.0"

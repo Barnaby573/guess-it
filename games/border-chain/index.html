@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Makes the page fit phone screens properly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Border Chain | Guess It</title>
+    <meta
+      name="description"
+      content="Get from one country to another by naming the countries in between. Fewest goes wins."
+    />
+    <!-- A chain emoji as the little icon in the browser tab -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>"
+    />
+    <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <!-- The header is added here by shared/header.js -->
+
+    <main class="container">
+      <!-- ============ SCREEN 1: choose your options ============ -->
+      <section id="options-screen">
+        <h1 class="title">🔗 Border Chain</h1>
+        <p class="subtitle">
+          Travel from one country to another by naming the countries in
+          between. Every country you name is a go, so take the shortest route
+          you can.
+        </p>
+
+        <!-- The Rules / Map / Distance buttons are created by game.js -->
+        <div class="option-groups" id="option-groups"></div>
+
+        <button class="btn btn-primary play-button" id="play-button" type="button" disabled>
+          Loading map...
+        </button>
+      </section>
+
+      <!-- ============ SCREEN 2: the game ============ -->
+      <section id="game-screen" hidden>
+        <!-- Top bar: back button and scores -->
+        <div class="hud">
+          <button class="hud-back" id="back-button" type="button">← Options</button>
+          <div class="hud-scores">
+            <span class="pill">Goes <strong id="goes">0</strong></span>
+            <span class="pill">Best possible <strong id="best">0</strong></span>
+          </div>
+        </div>
+
+        <!-- The puzzle: "Portugal → Poland" -->
+        <p class="journey">
+          <span class="journey-start" id="start-name"></span>
+          <span class="journey-arrow" aria-hidden="true">→</span>
+          <span class="journey-end" id="end-name"></span>
+        </p>
+
+        <!-- The map. The shapes inside are drawn by map.js -->
+        <div class="map-frame">
+          <svg id="map" role="img" aria-label="Map showing your route"></svg>
+        </div>
+
+        <!-- What the colours mean -->
+        <p class="legend">
+          <span data-state="start">Start</span>
+          <span data-state="end">Target</span>
+          <span data-state="chain">Your route</span>
+          <span data-state="wrong">Not connected</span>
+        </p>
+
+        <!-- Where the player types a country -->
+        <form class="entry-form" id="entry-form" autocomplete="off">
+          <div class="entry-box">
+            <input
+              class="entry-input"
+              id="entry-input"
+              type="text"
+              placeholder="Type a country"
+              aria-label="Type a country"
+              autocomplete="off"
+              autocapitalize="words"
+              spellcheck="false"
+            />
+            <!-- The suggestion list, filled in by game.js as you type -->
+            <div class="suggestions" id="suggestions" hidden></div>
+          </div>
+          <button class="btn btn-primary" type="submit">Enter</button>
+        </form>
+
+        <!-- Feedback on the last entry. aria-live makes screen readers read it out. -->
+        <p class="message" id="message" aria-live="polite"></p>
+
+        <!-- The countries named so far, as a row of chips -->
+        <div class="chain" id="chain"></div>
+
+        <button class="give-up" id="give-up-button" type="button">
+          Give up and show a route
+        </button>
+      </section>
+    </main>
+
+    <!-- ============ Result pop-up ============ -->
+    <div class="overlay" id="result" hidden>
+      <div class="modal" role="dialog" aria-labelledby="result-title">
+        <h2 id="result-title"></h2>
+        <p class="result-subtitle" id="result-subtitle"></p>
+
+        <div class="final-scores">
+          <div>
+            <span class="final-number" id="final-goes">0</span>
+            <span class="final-label">Your goes</span>
+          </div>
+          <div>
+            <span class="final-number" id="final-best">0</span>
+            <span class="final-label">Best possible</span>
+          </div>
+        </div>
+
+        <!-- Filled in by game.js with one of the shortest routes -->
+        <div class="route-box" id="route-box"></div>
+
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="new-round-button" type="button">
+            New round
+          </button>
+          <button class="btn" id="change-options-button" type="button">
+            Change options
+          </button>
+          <button class="btn" id="share-button" type="button">Share</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- type="module" lets game.js use "import" to load other files -->
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

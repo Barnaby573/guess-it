@@ -1,0 +1,522 @@
+/* games/border-chain/game.css
+ *
+ * Styles for the Border Chain game only.
+ * Colours and buttons come from shared/base.css.
+ */
+
+/* The colours used for countries, shared by the map, the chips and the
+   legend so they always match. */
+:root {
+  --start: #a78bfa; /* purple: where you begin */
+  --end: #22d3ee; /* cyan: where you're going */
+  --chain: #22c55e; /* green: on your route */
+  --wrong: #ef4444; /* red: not connected */
+  --map-sea: #090c1b;
+  --map-land: #1c2246;
+  --map-line: #3b4480;
+}
+
+/* ---- Options screen ------------------------------------------------------ */
+.title {
+  margin-top: 16px;
+  font-size: clamp(1.9rem, 6vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.subtitle {
+  max-width: 500px;
+  margin: 10px auto 26px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.option-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.option-label {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A row of buttons joined into one rounded bar */
+.picker {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.picker-button {
+  flex: 1;
+  padding: 10px 6px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.picker-button:hover {
+  color: var(--text);
+}
+
+.picker-button:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+/* The selected choice (game.js sets aria-pressed="true" on it) */
+.picker-button[aria-pressed='true'] {
+  background: linear-gradient(135deg, var(--accent), #5b8cff);
+  color: #fff;
+}
+
+.option-help {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.play-button {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  margin: 26px auto 0;
+  font-size: 1.1rem;
+}
+
+.play-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+/* ---- Top bar (back button + scores) -------------------------------------- */
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hud-back {
+  padding: 8px 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.hud-back:hover {
+  color: var(--text);
+}
+
+.hud-scores {
+  display: flex;
+  gap: 8px;
+}
+
+.pill {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.pill strong {
+  margin-left: 4px;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+/* ---- The puzzle line: "Portugal → Poland" --------------------------------- */
+.journey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 12px;
+  margin: 12px 0;
+  font-size: clamp(1.3rem, 4.5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.journey-start {
+  color: var(--start);
+}
+
+.journey-end {
+  color: var(--end);
+}
+
+.journey-arrow {
+  color: var(--muted);
+}
+
+/* ---- The map --------------------------------------------------------------- */
+.map-frame {
+  /* aspect-ratio keeps the map the same shape at any width */
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--map-sea);
+}
+
+#map {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-background,
+.map-country,
+.map-dot {
+  fill: var(--map-land);
+  stroke: var(--map-line);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  /* Keeps outlines the same thickness however far the map is zoomed */
+  vector-effect: non-scaling-stroke;
+  transition: fill 0.3s ease;
+}
+
+/* Background land has no border lines, so it reads as "not in play" */
+.map-background {
+  stroke: none;
+  opacity: 0.6;
+}
+
+/* The dots that mark tiny countries */
+.map-dot {
+  fill: var(--map-line);
+}
+
+/* BLANK MAP: hide all land, and every country that has no colour yet.
+   game.js gives a country a data-state when it is the start, the target,
+   or has been named. */
+.is-blank .map-background,
+.is-blank .map-country:not([data-state]),
+.is-blank .map-dot:not([data-state]) {
+  display: none;
+}
+
+/* The colours. These selectors also colour the chips and the legend. */
+[data-state='start'] {
+  --state-colour: var(--start);
+}
+[data-state='end'] {
+  --state-colour: var(--end);
+}
+[data-state='chain'],
+[data-state='current'] {
+  --state-colour: var(--chain);
+}
+[data-state='wrong'],
+[data-state='loose'] {
+  --state-colour: var(--wrong);
+}
+
+.map-country[data-state],
+.map-dot[data-state] {
+  fill: var(--state-colour);
+  stroke: var(--map-sea);
+}
+
+/* The country you are standing on (strict rules) gets a white outline */
+.map-country[data-state='current'],
+.map-dot[data-state='current'] {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+/* ---- Legend ---------------------------------------------------------------- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin: 8px 0 12px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* The little coloured square before each legend label */
+.legend span::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  background: var(--state-colour);
+}
+
+/* ---- Text box and suggestions ----------------------------------------------- */
+.entry-form {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-box {
+  position: relative; /* so the suggestion list can hang below the box */
+  flex: 1;
+}
+
+.entry-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  /* 16px or bigger stops iPhones zooming in when the box is tapped */
+  font-size: 1rem;
+}
+
+.entry-input::placeholder {
+  color: var(--muted);
+}
+
+.entry-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Opens UPWARDS, so the on-screen keyboard on a phone can't cover it */
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.suggestion {
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestion:hover,
+.suggestion.is-highlighted {
+  background: var(--accent);
+}
+
+/* ---- Feedback line ------------------------------------------------------------ */
+.message {
+  min-height: 1.4em; /* reserve the space so the page doesn't jump */
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.message[data-tone='good'] {
+  color: var(--chain);
+}
+
+.message[data-tone='bad'] {
+  color: var(--wrong);
+}
+
+/* ---- The chain of chips --------------------------------------------------------- */
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border: 1.5px solid var(--state-colour);
+  border-radius: 999px;
+  background: none;
+  color: var(--state-colour);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Chips that are buttons (you can go back to them) */
+button.chip {
+  cursor: pointer;
+}
+
+button.chip:hover {
+  background: var(--surface-2);
+}
+
+/* Wrong entries are crossed out */
+.chip[data-state='wrong'] {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+/* The country you are standing on is filled in */
+.chip-current {
+  background: var(--state-colour);
+  color: var(--bg);
+}
+
+button.chip-current:hover {
+  background: var(--state-colour);
+}
+
+.give-up {
+  display: block;
+  margin: 18px auto 0;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.give-up:hover {
+  color: var(--text);
+}
+
+/* ---- Result pop-up ---------------------------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0; /* cover the whole screen */
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(6, 8, 20, 0.78);
+  backdrop-filter: blur(4px);
+  animation: fade-in 0.25s ease;
+}
+
+.modal {
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 26px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+  animation: pop-in 0.3s ease;
+}
+
+.modal h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.result-subtitle {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.final-scores {
+  display: flex;
+  justify-content: center;
+  gap: 44px;
+  margin: 18px 0;
+}
+
+.final-number {
+  display: block;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.final-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-box {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: 0.92rem;
+}
+
+.route-label {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+/* ---- Phones -------------------------------------------------------------------------
+ * A taller map, since phone screens are narrow. */
+@media (max-width: 640px) {
+  .map-frame {
+    aspect-ratio: 4 / 3;
+  }
+
+  .pill {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+}

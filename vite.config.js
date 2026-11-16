@@ -21,6 +21,7 @@ export default defineConfig({
         home: resolve(import.meta.dirname, 'index.html'),
         // Games - add a new line here each time a game is added
         higherLower: resolve(import.meta.dirname, 'games/higher-lower/index.html'),
+        borderChain: resolve(import.meta.dirname, 'games/border-chain/index.html'),
       },
     },
   },
