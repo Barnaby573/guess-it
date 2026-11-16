@@ -216,11 +216,19 @@
   fill: var(--map-line);
 }
 
-/* BLANK MAP: hide all land, and every country that has no colour yet.
+/* BLANK MAP: the land is shown, but with no border lines.
+   Every country that has no colour yet gets an outline in the SAME colour
+   as the land, so neighbouring countries merge into one plain shape.
+   (Removing the outline altogether would leave hairline gaps.)
    game.js gives a country a data-state when it is the start, the target,
-   or has been named. */
+   or has been named; those keep their colours. */
 .is-blank .map-background,
-.is-blank .map-country:not([data-state]),
+.is-blank .map-country:not([data-state]) {
+  stroke: var(--map-land);
+  opacity: 1;
+}
+
+/* The dots marking tiny countries would give their positions away */
 .is-blank .map-dot:not([data-state]) {
   display: none;
 }

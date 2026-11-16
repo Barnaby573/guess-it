@@ -143,7 +143,7 @@ export function createMap(svg, mapData) {
   // ---- What the game can ask the map to do -------------------------------------
   return {
     // Clears all colours and shows the whole world.
-    // blank = true hides every country until it is given a state.
+    // blank = true hides the border lines, leaving plain land (see game.css).
     reset(blank) {
       svg.classList.toggle('is-blank', blank);
       for (const code of Object.keys(shapes)) this.setState(code, null);

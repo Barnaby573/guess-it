@@ -59,7 +59,7 @@ const OPTIONS = {
     label: 'Map',
     choices: {
       outlines: { label: 'Outlines', help: 'Every border is drawn for you.' },
-      blank: { label: 'Blank', help: 'Countries only appear when you name them.' },
+      blank: { label: 'Blank', help: 'Just the land, with no borders drawn.' },
     },
   },
   distance: {
@@ -290,15 +290,25 @@ function enterStrict(code) {
     return { message: `Back to ${name}. Where next?` };
   }
 
+  const borders = sharesBorder(state.current, code);
+
+  // A country you got wrong earlier (shown in red). It was wrong from where
+  // you stood then, but it might be right from where you stand now.
   if (state.status[code] === 'wrong') {
-    return { message: `You've already tried ${name}.` };
+    if (!borders) {
+      // Still wrong. You've already paid a go for this mistake.
+      return { message: `${name} still doesn't border ${here}.` };
+    }
+    // Now it's a real move. Take it out of the list so it can be added
+    // again below, at the end, where it belongs in the chain.
+    state.entries = state.entries.filter((entry) => entry !== code);
   }
 
-  // A brand new country: this costs a go, right or wrong.
+  // Every real attempt costs a go, right or wrong.
   state.goes += 1;
   state.entries.push(code);
 
-  if (!sharesBorder(state.current, code)) {
+  if (!borders) {
     state.status[code] = 'wrong';
     return { message: `${name} doesn't border ${here}.`, tone: 'bad' };
   }
