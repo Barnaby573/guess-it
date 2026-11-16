@@ -218,10 +218,10 @@ function showStartScreen() {
   for (const [key, difficulty] of Object.entries(DIFFICULTIES)) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'difficulty-button';
+    button.className = 'picker-button'; // styled in shared/game-ui.css
     button.textContent = difficulty.label;
     // aria-pressed tells screen readers which one is selected,
-    // and game.css uses it to highlight the button.
+    // and the stylesheet uses it to highlight the button.
     button.setAttribute('aria-pressed', key === state.difficulty);
     button.addEventListener('click', () => {
       state.difficulty = key;

@@ -14,7 +14,11 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>"
     />
+    <!-- Colours the browser's own bar on phones to match the paper -->
+    <meta name="theme-color" content="#f4ecdb" />
+    <!-- Three stylesheets: site-wide, shared by all games, then this game -->
     <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="../../shared/game-ui.css" />
     <link rel="stylesheet" href="./game.css" />
   </head>
   <body>
@@ -59,6 +63,12 @@
         <!-- The map. The shapes inside are drawn by map.js -->
         <div class="map-frame">
           <svg id="map" role="img" aria-label="Map showing your route"></svg>
+          <!-- Zoom buttons. You can also scroll, drag or pinch the map. -->
+          <div class="map-controls">
+            <button id="zoom-in-button" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+            <button id="zoom-out-button" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+            <button id="zoom-fit-button" type="button" aria-label="Show whole route" title="Show whole route">⤢</button>
+          </div>
         </div>
 
         <!-- What the colours mean -->
@@ -66,7 +76,8 @@
           <span data-state="start">Start</span>
           <span data-state="end">Target</span>
           <span data-state="chain">Your route</span>
-          <span data-state="wrong">Not connected</span>
+          <!-- game.js changes this one to suit the rules being played -->
+          <span data-state="wrong" id="legend-extra">Wrong</span>
         </p>
 
         <!-- Where the player types a country -->

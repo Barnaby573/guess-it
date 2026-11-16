@@ -120,6 +120,10 @@ const el = {
   startName: document.getElementById('start-name'),
   endName: document.getElementById('end-name'),
   mapSvg: document.getElementById('map'),
+  legendExtra: document.getElementById('legend-extra'),
+  zoomInButton: document.getElementById('zoom-in-button'),
+  zoomOutButton: document.getElementById('zoom-out-button'),
+  zoomFitButton: document.getElementById('zoom-fit-button'),
   form: document.getElementById('entry-form'),
   input: document.getElementById('entry-input'),
   suggestions: document.getElementById('suggestions'),
@@ -220,6 +224,12 @@ function startRound() {
   el.gameScreen.hidden = false;
 
   map.reset(choices.map === 'blank');
+  // The fourth legend entry depends on the rules: strict has wrong answers
+  // (red), free entry has countries waiting to be linked up (amber).
+  const isStrict = choices.rules === 'strict';
+  el.legendExtra.dataset.state = isStrict ? 'wrong' : 'loose';
+  el.legendExtra.textContent = isStrict ? 'Wrong' : 'Not linked yet';
+
   el.startName.textContent = nameOf(state.start);
   el.endName.textContent = nameOf(state.end);
   setMessage(
@@ -350,7 +360,8 @@ function enterFree(code) {
     message: isLinked
       ? `${name} is linked to your route.`
       : `${name} isn't linked to your route yet.`,
-    tone: isLinked ? 'good' : 'bad',
+    // Not linked yet isn't a mistake, so it gets amber rather than red.
+    tone: isLinked ? 'good' : 'waiting',
     won: [...linked].some((linkedCode) => sharesBorder(linkedCode, state.end)),
   };
 }
@@ -360,7 +371,7 @@ function enterFree(code) {
 // ===========================================================================
 
 // Shows a line of feedback under the text box.
-// tone is 'good' (green), 'bad' (red) or left out (neutral).
+// tone is 'good' (green), 'bad' (red), 'waiting' (amber) or left out (neutral).
 function setMessage(text, tone = 'info') {
   el.message.textContent = text;
   el.message.dataset.tone = tone;
@@ -384,8 +395,10 @@ function render() {
   }
   // Keep everything the player has named in view. (The opening zoom
   // handles the camera until the first entry.)
+  // If the player has zoomed or dragged the map themselves, "follow" leaves
+  // their view alone as long as the newest country is on screen.
   if (state.entries.length > 0) {
-    map.focusOn([state.start, state.end, ...state.entries]);
+    map.follow(everythingInPlay(), state.entries[state.entries.length - 1]);
   }
 
   // --- Chain of chips ---
@@ -395,6 +408,12 @@ function render() {
     el.chain.append(makeChip(code, state.status[code]));
   }
   el.chain.append(makeChip(state.end, 'end'));
+}
+
+// Every country that matters this round: the start, the target and
+// everything the player has named. Used for framing the map.
+function everythingInPlay() {
+  return [state.start, state.end, ...state.entries];
 }
 
 // Builds one chip: a small rounded label for a country.
@@ -554,6 +573,14 @@ el.giveUpButton.addEventListener('click', () => finish(false));
 el.newRoundButton.addEventListener('click', startRound);
 el.changeOptionsButton.addEventListener('click', showOptionsScreen);
 el.shareButton.addEventListener('click', share);
+
+// The zoom buttons in the corner of the map.
+el.zoomInButton.addEventListener('click', () => map.zoomBy(0.6));
+el.zoomOutButton.addEventListener('click', () => map.zoomBy(1 / 0.6));
+el.zoomFitButton.addEventListener('click', () => {
+  cancelIntro();
+  map.focusOn(everythingInPlay());
+});
 
 el.form.addEventListener('submit', (event) => {
   event.preventDefault(); // stop the browser reloading the page

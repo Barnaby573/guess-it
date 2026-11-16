@@ -1,0 +1,191 @@
+/* shared/game-ui.css
+ *
+ * Pieces of interface that every GAME page uses: the title, the rows of
+ * option buttons, the top bar with scores, and the result pop-up.
+ * Keeping them here means each new game gets them for free and they
+ * always look the same.
+ *
+ * Each game also has its own game.css for the parts unique to it.
+ */
+
+/* ---- Title and intro on a game's first screen ----------------------------- */
+.title {
+  margin-top: 6px;
+  font-size: clamp(2rem, 6.5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.subtitle {
+  max-width: 500px;
+  margin: 10px auto 26px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---- Picker: a row of buttons joined into one bar -------------------------
+ * Used for Easy / Medium / Hard and similar choices. The game's JavaScript
+ * sets aria-pressed="true" on the selected button. */
+.picker {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.picker-button {
+  flex: 1;
+  padding: 10px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.picker-button:hover {
+  color: var(--text);
+}
+
+.picker-button:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.picker-button[aria-pressed='true'] {
+  border-color: #17485a;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ---- Top bar: back button on the left, scores on the right ---------------- */
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hud-back {
+  padding: 8px 4px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.hud-back:hover {
+  color: var(--text);
+}
+
+.hud-scores {
+  display: flex;
+  gap: 8px;
+}
+
+/* A small rounded label holding one score */
+.pill {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.pill strong {
+  margin-left: 4px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+/* ---- Result pop-up -------------------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0; /* cover the whole screen */
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(47, 38, 27, 0.5);
+  backdrop-filter: blur(3px);
+  animation: fade-in 0.25s ease;
+}
+
+.modal {
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 26px 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 20px 50px rgba(47, 38, 27, 0.35);
+  text-align: center;
+  animation: pop-in 0.3s ease;
+}
+
+.modal h2 {
+  font-size: 1.9rem;
+  font-weight: 700;
+}
+
+/* The two big numbers side by side */
+.final-scores {
+  display: flex;
+  justify-content: center;
+  gap: 44px;
+  margin: 18px 0;
+}
+
+.final-number {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 3.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.final-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@media (max-width: 640px) {
+  .pill {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+  }
+}

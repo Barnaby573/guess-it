@@ -1,63 +1,19 @@
 /* games/higher-lower/game.css
  *
- * Styles for the Higher or Lower game only.
+ * Styles for the parts unique to Higher or Lower: the category buttons,
+ * the two country cards, and the answer box.
+ *
  * Colours and buttons come from shared/base.css.
+ * The title, difficulty picker, top bar and result pop-up come from
+ * shared/game-ui.css.
  */
 
 /* ---- Start screen -------------------------------------------------------- */
-.title {
-  margin-top: 16px;
-  font-size: clamp(1.9rem, 6vw, 2.8rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-align: center;
-}
 
-.subtitle {
-  max-width: 480px;
-  margin: 10px auto 26px;
-  color: var(--muted);
-  text-align: center;
-}
-
-/* Easy / Medium / Hard: three buttons joined into one rounded bar */
+/* The Easy / Medium / Hard bar (its look comes from .picker in game-ui.css) */
 .difficulty-picker {
-  display: flex;
-  gap: 4px;
   max-width: 340px;
   margin: 0 auto 18px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-}
-
-.difficulty-button {
-  flex: 1;
-  padding: 9px 0;
-  border: none;
-  border-radius: 999px;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.difficulty-button:hover {
-  color: var(--text);
-}
-
-.difficulty-button:focus-visible {
-  outline: 3px solid var(--accent-2);
-  outline-offset: 2px;
-}
-
-/* The selected difficulty (game.js sets aria-pressed="true" on it) */
-.difficulty-button[aria-pressed='true'] {
-  background: linear-gradient(135deg, var(--accent), #5b8cff);
-  color: #fff;
 }
 
 /* Category buttons: 2 per row on phones, 3 per row on bigger screens */
@@ -81,17 +37,18 @@
   align-items: center;
   gap: 4px;
   padding: 18px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
   font: inherit;
   cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .category-button:hover {
-  border-color: var(--accent);
+  background: var(--surface-2);
   transform: translateY(-3px);
 }
 
@@ -105,6 +62,8 @@
 }
 
 .category-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -113,57 +72,13 @@
   font-size: 0.8rem;
 }
 
-/* "Mixed" stretches across the whole row and gets a gradient border */
+/* "Mixed" stretches across the whole row and gets a bolder, coloured edge */
 .category-mixed {
   grid-column: 1 / -1;
-  border-color: transparent;
-  background: linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(90deg, var(--accent), var(--accent-2)) border-box;
+  border: 2px solid var(--accent);
 }
 
-/* ---- Top bar (back button + scores) -------------------------------------- */
-.hud {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.hud-back {
-  padding: 8px 4px;
-  border: none;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.hud-back:hover {
-  color: var(--text);
-}
-
-.hud-scores {
-  display: flex;
-  gap: 8px;
-}
-
-.pill {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-
-.pill strong {
-  margin-left: 4px;
-  color: var(--text);
-  font-size: 1rem;
-}
-
+/* ---- The question above the cards ---------------------------------------- */
 .question {
   margin: 14px 0;
   color: var(--muted);
@@ -172,7 +87,7 @@
 }
 
 .question strong {
-  color: var(--accent-2);
+  color: var(--accent);
 }
 
 /* ---- The board and cards ------------------------------------------------- */
@@ -192,9 +107,10 @@
   gap: 12px;
   min-width: 0; /* lets long names wrap instead of stretching the card */
   padding: 26px 18px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
+  box-shadow: var(--shadow);
   text-align: center;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -208,13 +124,15 @@
 .flag {
   max-width: 100%;
   max-height: 100%;
-  border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  /* A thin outline so white flags don't vanish into the pale card */
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(70, 50, 20, 0.25);
 }
 
 .country-name {
-  font-size: clamp(1.2rem, 3vw, 1.6rem);
-  font-weight: 800;
+  font-size: clamp(1.3rem, 3.2vw, 1.75rem);
+  font-weight: 700;
   line-height: 1.2;
 }
 
@@ -232,12 +150,13 @@
 
 /* The big bold number */
 .value {
-  font-size: clamp(1.5rem, 4vw, 2.3rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4.2vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.15;
   /* Keeps digits the same width so the number doesn't wobble as it counts */
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .year {
@@ -263,11 +182,13 @@
   place-items: center;
   width: 46px;
   height: 46px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--border-strong);
   border-radius: 50%;
   background: var(--bg);
-  font-size: 0.85rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-style: italic;
+  font-weight: 700;
   transform: translate(-50%, -50%);
 }
 
@@ -281,7 +202,7 @@
 /* ---- Correct / wrong ----------------------------------------------------- */
 .card.correct {
   border-color: var(--green);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+  box-shadow: 0 0 0 4px rgba(76, 138, 63, 0.25);
 }
 
 .card.correct .value {
@@ -290,7 +211,7 @@
 
 .card.wrong {
   border-color: var(--red);
-  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 0 4px rgba(194, 69, 47, 0.25);
   animation: shake 0.4s ease;
 }
 
@@ -336,37 +257,7 @@
   }
 }
 
-/* ---- Game over pop-up ---------------------------------------------------- */
-.overlay {
-  position: fixed;
-  inset: 0; /* cover the whole screen */
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(6, 8, 20, 0.78);
-  backdrop-filter: blur(4px);
-  animation: fade-in 0.25s ease;
-}
-
-.modal {
-  width: 100%;
-  max-width: 400px;
-  max-height: 100%;
-  overflow-y: auto;
-  padding: 26px 22px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  text-align: center;
-  animation: pop-in 0.3s ease;
-}
-
-.modal h2 {
-  font-size: 1.8rem;
-  font-weight: 800;
-}
-
+/* ---- Extra bits inside the game over pop-up ------------------------------ */
 .mode-label {
   margin-top: 2px;
   color: var(--muted);
@@ -379,30 +270,10 @@
   font-weight: 700;
 }
 
-.final-scores {
-  display: flex;
-  justify-content: center;
-  gap: 44px;
-  margin: 18px 0;
-}
-
-.final-number {
-  display: block;
-  font-size: 3rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.final-label {
-  color: var(--muted);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .answer-box {
   padding: 12px 14px;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   background: var(--bg);
   font-size: 0.92rem;
 }
@@ -427,24 +298,6 @@
 .answer-row strong {
   text-align: right;
   white-space: nowrap;
-}
-
-.modal-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.92);
-  }
 }
 
 /* ---- Phones --------------------------------------------------------------

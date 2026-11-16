@@ -1,24 +1,45 @@
 /* shared/base.css
  *
  * Styles used by EVERY page on Guess It: colours, fonts, the header and
- * buttons. Each game adds its own stylesheet on top of this one.
+ * buttons. The look is a "paper atlas": cream paper, ink text, and the
+ * muted colours of a printed map.
  */
 
 /* ---- Design tokens ------------------------------------------------------
  * CSS variables: change a colour here and it changes across the whole site. */
 :root {
-  --bg: #0d1021;          /* page background */
-  --surface: #181c34;     /* cards and panels */
-  --surface-2: #232849;   /* slightly lighter, for buttons and hovers */
-  --border: #2e3460;
-  --text: #f2f4ff;
-  --muted: #9aa3c7;       /* secondary text */
-  --accent: #7c5cff;      /* purple */
-  --accent-2: #22d3ee;    /* cyan */
-  --green: #22c55e;
-  --red: #ef4444;
-  --radius: 18px;
+  /* Paper and ink */
+  --bg: #f4ecdb;          /* the page: cream paper */
+  --surface: #fbf6ea;     /* cards and panels: a lighter sheet */
+  --surface-2: #efe3c8;   /* pressed or hovered surfaces: a darker sheet */
+  --border: #cbb994;      /* soft pencil lines */
+  --border-strong: #8d7758; /* ink lines */
+  --text: #2f261b;        /* ink */
+  --muted: #75654f;       /* faded ink, for secondary text */
+
+  /* Accent colours */
+  --accent: #1f5c73;      /* deep sea blue: main buttons and links */
+  --accent-2: #b9812a;    /* ochre: highlights */
+  --on-accent: #fbf6ea;   /* text that sits on top of the accent colour */
+  --green: #4c8a3f;       /* correct */
+  --red: #c2452f;         /* wrong */
+
+  /* Shapes and shadows */
+  --radius: 12px;
   --gap: 16px;
+  --shadow: 0 1px 2px rgba(70, 50, 20, 0.08), 0 6px 18px rgba(70, 50, 20, 0.1);
+
+  /* Fonts. These are "font stacks": the browser uses the first one the
+     device has, so there is nothing to download.
+     Display = headings and big numbers (a bookish serif).
+     Body = everything else (the device's normal font, easy to read small). */
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino,
+    'Book Antiqua', Georgia, serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+
+  /* A tiny generated speckle image, repeated to give the paper some grain. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.27  0 0 0 0 0.17  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ---- Reset ---------------------------------------------------------------
@@ -40,18 +61,35 @@ p {
 body {
   min-height: 100vh;
   background: var(--bg);
-  /* A soft glow at the top of the page so the dark background isn't flat */
+  /* A soft pool of light at the top of the page, like a lamp on a desk */
   background-image: radial-gradient(
-    ellipse 80% 50% at 50% -10%,
-    rgba(124, 92, 255, 0.22),
+    ellipse 90% 60% at 50% -10%,
+    rgba(255, 255, 255, 0.6),
     transparent
   );
   background-repeat: no-repeat;
   color: var(--text);
-  /* "System font stack": uses the device's own font, so nothing to download */
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+  font-family: var(--font-body);
   line-height: 1.4;
+}
+
+/* The paper grain. It is a layer fixed behind everything (z-index: -1),
+   so it textures the page but not the cards sitting on top of it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--grain);
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
 }
 
 /* The "hidden" HTML attribute should always win, even over display: flex */
@@ -63,23 +101,25 @@ body {
 .site-header {
   display: flex;
   align-items: center;
-  padding: 14px 20px;
+  margin: 0 20px 18px;
+  padding: 14px 0 12px;
+  /* A double rule, like the border of an old map */
+  border-bottom: 3px double var(--border-strong);
 }
 
 .logo {
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text);
   text-decoration: none;
 }
 
-/* The word "It" in the logo gets a gradient */
+/* The word "It" in the logo is italic and coloured */
 .logo span {
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
+  font-style: italic;
 }
 
 /* ---- Page container ------------------------------------------------------ */
@@ -96,25 +136,27 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface-2);
+  padding: 13px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
   color: var(--text);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.12s ease, background 0.15s ease,
-    border-color 0.15s ease;
+  /* A hard little shadow underneath, like a raised printing block */
+  box-shadow: 0 2px 0 var(--border);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
 }
 
 .btn:hover {
-  border-color: var(--accent);
+  background: var(--surface-2);
 }
 
-/* Slight "press" effect when clicked or tapped */
+/* Pressing the button pushes it down onto its shadow */
 .btn:active {
-  transform: scale(0.97);
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--border);
 }
 
 /* A visible outline for people navigating with the keyboard */
@@ -125,13 +167,14 @@ a:focus-visible {
 }
 
 .btn-primary {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--accent), #5b8cff);
+  border-color: #17485a;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 2px 0 #17485a;
 }
 
 .btn-primary:hover {
-  border-color: transparent;
-  filter: brightness(1.1);
+  background: #256b85;
 }
 
 /* ---- Accessibility -------------------------------------------------------

@@ -14,7 +14,11 @@
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
     />
+    <!-- Colours the browser's own bar on phones to match the paper -->
+    <meta name="theme-color" content="#f4ecdb" />
+    <!-- Three stylesheets: site-wide, shared by all games, then this game -->
     <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="../../shared/game-ui.css" />
     <link rel="stylesheet" href="./game.css" />
   </head>
   <body>
@@ -30,7 +34,7 @@
         </p>
         <!-- Easy / Medium / Hard. The buttons are created by game.js -->
         <div
-          class="difficulty-picker"
+          class="picker difficulty-picker"
           id="difficulty-picker"
           role="group"
           aria-label="Difficulty"

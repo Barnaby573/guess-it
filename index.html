@@ -7,8 +7,10 @@
     <title>Guess It | Simple guessing games</title>
     <meta
       name="description"
-      content="A hub of quick, simple guessing games. Start with geography Higher or Lower."
+      content="A hub of quick, simple guessing games. Geography first: Higher or Lower and Border Chain."
     />
+    <!-- Colours the browser's own bar on phones to match the paper -->
+    <meta name="theme-color" content="#f4ecdb" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
@@ -22,59 +24,79 @@
     <main class="container">
       <section class="hero">
         <h1>Quick games.<br /><span>Good guesses.</span></h1>
-        <p>Pick a game and see how long you can keep your streak alive.</p>
+        <p>Pick a game and see how well you really know the world.</p>
       </section>
 
-      <section class="game-grid">
-        <!-- The one live game. It's a link, so the whole card is clickable. -->
-        <a class="game-card" href="./games/higher-lower/">
-          <span class="game-emoji">🌍</span>
-          <h2>Higher or Lower</h2>
-          <p>
-            Which country has the bigger population, economy or area? Seven
-            ways to play.
-          </p>
-          <span class="badge badge-live">Play now</span>
-        </a>
+      <!--
+        Games are grouped into categories. To add a category, copy a whole
+        <section class="category"> block and change its heading and cards.
 
-        <a class="game-card" href="./games/border-chain/">
-          <span class="game-emoji">🔗</span>
-          <h2>Border Chain</h2>
-          <p>
-            Get from one country to another by naming the countries in
-            between. Fewest goes wins.
-          </p>
-          <span class="badge badge-live">Play now</span>
-        </a>
+        A live game is an <a> (a link), so the whole card is clickable.
+        A game that isn't built yet is a <div> with the "game-card-soon"
+        class. To launch one: change its <div> to an <a> with an href, remove
+        "game-card-soon", and swap the badge to "Play now".
+      -->
 
-        <!-- Coming soon. To launch one later: change the <div> to an <a>
-             with an href, and swap the badge, like the card above. -->
-        <div class="game-card game-card-soon">
-          <span class="game-emoji">⚽</span>
-          <h2>Guess the Footballer</h2>
-          <p>Name the player from their career path.</p>
-          <span class="badge">Coming soon</span>
+      <!-- ============ GEOGRAPHY ============ -->
+      <section class="category">
+        <h2 class="category-heading">Geography</h2>
+        <div class="game-grid">
+          <a class="game-card" href="./games/higher-lower/">
+            <span class="game-emoji">🌍</span>
+            <h2>Higher or Lower</h2>
+            <p>
+              Which country has the bigger population, economy or area? Seven
+              ways to play.
+            </p>
+            <span class="badge badge-live">Play now</span>
+          </a>
+
+          <a class="game-card" href="./games/border-chain/">
+            <span class="game-emoji">🔗</span>
+            <h2>Border Chain</h2>
+            <p>
+              Get from one country to another by naming the countries in
+              between. Fewest goes wins.
+            </p>
+            <span class="badge badge-live">Play now</span>
+          </a>
+
+          <div class="game-card game-card-soon">
+            <span class="game-emoji">📍</span>
+            <h2>Capital Drop</h2>
+            <p>
+              You get a capital city. Drop a pin on the country it belongs to,
+              against the clock.
+            </p>
+            <span class="badge">Coming soon</span>
+          </div>
         </div>
+      </section>
 
-        <div class="game-card game-card-soon">
-          <span class="game-emoji">📍</span>
-          <h2>Map Pin</h2>
-          <p>Drop a pin as close as you can to the mystery place.</p>
-          <span class="badge">Coming soon</span>
-        </div>
+      <!-- ============ MORE TO COME ============ -->
+      <section class="category">
+        <h2 class="category-heading">More to come</h2>
+        <div class="game-grid">
+          <div class="game-card game-card-soon">
+            <span class="game-emoji">⚽</span>
+            <h2>Guess the Footballer</h2>
+            <p>Name the player from their career path.</p>
+            <span class="badge">Sport · Coming soon</span>
+          </div>
 
-        <div class="game-card game-card-soon">
-          <span class="game-emoji">📅</span>
-          <h2>Guess the Year</h2>
-          <p>When did it happen? Get as close as you can.</p>
-          <span class="badge">Coming soon</span>
-        </div>
+          <div class="game-card game-card-soon">
+            <span class="game-emoji">📅</span>
+            <h2>Guess the Year</h2>
+            <p>When did it happen? Get as close as you can.</p>
+            <span class="badge">History · Coming soon</span>
+          </div>
 
-        <div class="game-card game-card-soon">
-          <span class="game-emoji">🏷️</span>
-          <h2>Guess the Price</h2>
-          <p>How much does it cost? Closest guess wins.</p>
-          <span class="badge">Coming soon</span>
+          <div class="game-card game-card-soon">
+            <span class="game-emoji">🏷️</span>
+            <h2>Guess the Price</h2>
+            <p>How much does it cost? Closest guess wins.</p>
+            <span class="badge">Everyday · Coming soon</span>
+          </div>
         </div>
       </section>
 
@@ -82,7 +104,7 @@
         Country data from
         <a href="https://data.worldbank.org" target="_blank" rel="noopener"
           >World Bank Open Data</a
-        >. Flags from flagcdn.com.
+        >. Maps from Natural Earth. Flags from flagcdn.com.
       </footer>
     </main>
 
