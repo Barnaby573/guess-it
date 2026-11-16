@@ -1,0 +1,13 @@
+# Downloaded packages (re-created by "npm install")
+node_modules/
+
+# Build output (re-created by "npm run build")
+dist/
+
+# Settings for the Claude app on this computer (not part of the site)
+.claude/
+
+# Editor / OS clutter
+.DS_Store
+Thumbs.db
+.vscode/

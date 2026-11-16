@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Makes the page fit phone screens properly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Higher or Lower | Guess It</title>
+    <meta
+      name="description"
+      content="Which country has the higher population, GDP, area and more? Build your streak."
+    />
+    <!-- A globe emoji as the little icon in the browser tab -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>"
+    />
+    <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <!-- The header is added here by shared/header.js -->
+
+    <main class="container">
+      <!-- ============ SCREEN 1: choose a category ============ -->
+      <section id="start-screen">
+        <h1 class="title">🌍 Higher or Lower</h1>
+        <p class="subtitle">
+          Pick a category, then guess whether each new country is higher or
+          lower. How long can you keep your streak going?
+        </p>
+        <!-- Easy / Medium / Hard. The buttons are created by game.js -->
+        <div
+          class="difficulty-picker"
+          id="difficulty-picker"
+          role="group"
+          aria-label="Difficulty"
+        ></div>
+        <!-- The category buttons are created by game.js -->
+        <div class="category-grid" id="category-grid"></div>
+      </section>
+
+      <!-- ============ SCREEN 2: the game ============ -->
+      <section id="game-screen" hidden>
+        <!-- Top bar: back button, streak and best streak -->
+        <div class="hud">
+          <button class="hud-back" id="back-button" type="button">
+            ← Categories
+          </button>
+          <div class="hud-scores">
+            <span class="pill">🔥 Streak <strong id="streak">0</strong></span>
+            <span class="pill">🏆 Best <strong id="best">0</strong></span>
+          </div>
+        </div>
+
+        <!-- The question, e.g. "Which has the higher Population?" -->
+        <p class="question" id="question"></p>
+
+        <!-- The two country cards -->
+        <div class="board" id="board">
+          <article class="card card-left" id="card-left">
+            <div class="flag-box"><img class="flag" alt="" /></div>
+            <h2 class="country-name"></h2>
+            <div class="answer-area">
+              <p class="value"></p>
+              <p class="year"></p>
+            </div>
+          </article>
+
+          <div class="vs" aria-hidden="true">VS</div>
+
+          <article class="card card-right" id="card-right">
+            <div class="flag-box"><img class="flag" alt="" /></div>
+            <h2 class="country-name"></h2>
+            <div class="answer-area">
+              <!-- Shown before the guess -->
+              <div class="guess-buttons" id="guess-buttons">
+                <button class="btn btn-primary" id="higher-button" type="button">
+                  ▲ Higher
+                </button>
+                <button class="btn" id="lower-button" type="button">
+                  ▼ Lower
+                </button>
+              </div>
+              <!-- Shown after the guess -->
+              <p class="value" hidden></p>
+              <p class="year" hidden></p>
+            </div>
+          </article>
+        </div>
+
+        <p class="keyboard-hint">Tip: use the ↑ and ↓ arrow keys</p>
+      </section>
+    </main>
+
+    <!-- ============ Game over pop-up ============ -->
+    <div class="overlay" id="gameover" hidden>
+      <div class="modal" role="dialog" aria-labelledby="gameover-title">
+        <h2 id="gameover-title">Game over</h2>
+        <!-- e.g. "Population · Hard", filled in by game.js -->
+        <p class="mode-label" id="mode-label"></p>
+        <p class="new-best" id="new-best" hidden>🎉 New best streak!</p>
+
+        <div class="final-scores">
+          <div>
+            <span class="final-number" id="final-streak">0</span>
+            <span class="final-label">Streak</span>
+          </div>
+          <div>
+            <span class="final-number" id="final-best">0</span>
+            <span class="final-label">Best</span>
+          </div>
+        </div>
+
+        <!-- Filled in by game.js with the correct answer -->
+        <div class="answer-box" id="answer-box"></div>
+
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="play-again-button" type="button">
+            Play again
+          </button>
+          <button class="btn" id="change-category-button" type="button">
+            Change category
+          </button>
+          <button class="btn" id="share-button" type="button">Share</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- type="module" lets game.js use "import" to load other files -->
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

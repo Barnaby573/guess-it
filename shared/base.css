@@ -1,0 +1,147 @@
+/* shared/base.css
+ *
+ * Styles used by EVERY page on Guess It: colours, fonts, the header and
+ * buttons. Each game adds its own stylesheet on top of this one.
+ */
+
+/* ---- Design tokens ------------------------------------------------------
+ * CSS variables: change a colour here and it changes across the whole site. */
+:root {
+  --bg: #0d1021;          /* page background */
+  --surface: #181c34;     /* cards and panels */
+  --surface-2: #232849;   /* slightly lighter, for buttons and hovers */
+  --border: #2e3460;
+  --text: #f2f4ff;
+  --muted: #9aa3c7;       /* secondary text */
+  --accent: #7c5cff;      /* purple */
+  --accent-2: #22d3ee;    /* cyan */
+  --green: #22c55e;
+  --red: #ef4444;
+  --radius: 18px;
+  --gap: 16px;
+}
+
+/* ---- Reset ---------------------------------------------------------------
+ * Remove browser defaults so every browser starts from the same place. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  /* A soft glow at the top of the page so the dark background isn't flat */
+  background-image: radial-gradient(
+    ellipse 80% 50% at 50% -10%,
+    rgba(124, 92, 255, 0.22),
+    transparent
+  );
+  background-repeat: no-repeat;
+  color: var(--text);
+  /* "System font stack": uses the device's own font, so nothing to download */
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  line-height: 1.4;
+}
+
+/* The "hidden" HTML attribute should always win, even over display: flex */
+[hidden] {
+  display: none !important;
+}
+
+/* ---- Header -------------------------------------------------------------- */
+.site-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+}
+
+.logo {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* The word "It" in the logo gets a gradient */
+.logo span {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- Page container ------------------------------------------------------ */
+.container {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+/* Slight "press" effect when clicked or tapped */
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* A visible outline for people navigating with the keyboard */
+.btn:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent), #5b8cff);
+}
+
+.btn-primary:hover {
+  border-color: transparent;
+  filter: brightness(1.1);
+}
+
+/* ---- Accessibility -------------------------------------------------------
+ * Some people set their device to "reduce motion". Respect that by turning
+ * animations off. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
