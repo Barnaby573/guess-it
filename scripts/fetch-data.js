@@ -94,6 +94,53 @@ const FRIENDLY_NAMES = {
   YE: 'Yemen',
 };
 
+// Corrections to the World Bank's capital cities. Keyed by 2-letter ISO
+// code. Each entry only lists what needs changing: the name, the position
+// (lat = latitude, lon = longitude), or both.
+const CAPITAL_FIXES = {
+  // --- Missing from the World Bank data ---
+  IL: { name: 'Jerusalem' },
+  PS: { name: 'Ramallah', lat: 31.9038, lon: 35.2034 },
+
+  // --- Out of date ---
+  BI: { name: 'Gitega', lat: -3.4264, lon: 29.9246 }, // moved from Bujumbura in 2019
+  PW: { name: 'Ngerulmud', lat: 7.5006, lon: 134.6242 }, // moved from Koror in 2006
+  LK: { name: 'Sri Jayawardenepura Kotte', lat: 6.8868, lon: 79.9187 },
+
+  // --- Spelling and accents ---
+  AL: { name: 'Tirana' },
+  UA: { name: 'Kyiv' },
+  NR: { name: 'Yaren' },
+  TT: { name: 'Port of Spain' },
+  VU: { name: 'Port Vila' },
+  US: { name: 'Washington, D.C.' },
+  CO: { name: 'Bogotá' },
+  BR: { name: 'Brasília' },
+  CM: { name: 'Yaoundé' },
+  TG: { name: 'Lomé' },
+  MD: { name: 'Chișinău' },
+  PY: { name: 'Asunción' },
+  MV: { name: 'Malé' },
+  ST: { name: 'São Tomé' },
+  IS: { name: 'Reykjavík' },
+  LU: { name: 'Luxembourg City' },
+  DJ: { name: 'Djibouti City' },
+  SM: { name: 'City of San Marino' },
+
+  // --- Position was the middle of the country, not the city ---
+  CR: { name: 'San José', lat: 9.9281, lon: -84.0907 },
+  BO: { lat: -16.4897, lon: -68.1193 }, // La Paz
+  MG: { lat: -18.8792, lon: 47.5079 }, // Antananarivo
+  VE: { lat: 10.4806, lon: -66.9036 }, // Caracas
+  PK: { lat: 33.6844, lon: 73.0479 }, // Islamabad
+  ML: { lat: 12.6392, lon: -8.0029 }, // Bamako
+  CF: { lat: 4.3947, lon: 18.5582 }, // Bangui
+  HN: { lat: 14.0723, lon: -87.1921 }, // Tegucigalpa
+  CI: { lat: 6.8276, lon: -5.2893 }, // Yamoussoukro
+  LA: { lat: 17.9757, lon: 102.6331 }, // Vientiane
+  MM: { lat: 19.7633, lon: 96.0785 }, // Naypyidaw
+};
+
 // The World Bank API returns results in "pages". Every response is an
 // array of two things: [pageInfo, rows]. This helper keeps asking for the
 // next page until it has all the rows.
@@ -139,10 +186,22 @@ async function main() {
   // (Indicator rows identify countries by their 3-letter code.)
   const countriesByIso3 = new Map();
   for (const entry of realCountries) {
+    // The capital city and where it is on the globe (used by Capital Drop).
+    // Start with the World Bank's entry, then lay our corrections on top.
+    // (The "..." copies everything from one object into another, with
+    // later ones overwriting earlier ones.)
+    const capital = {
+      name: entry.capitalCity,
+      lat: Number(entry.latitude),
+      lon: Number(entry.longitude),
+      ...CAPITAL_FIXES[entry.iso2Code],
+    };
+
     countriesByIso3.set(entry.id, {
       // Use our friendlier name if we have one, otherwise the official one.
       name: FRIENDLY_NAMES[entry.iso2Code] ?? entry.name,
       iso2: entry.iso2Code,
+      capital,
       stats: {},
     });
   }
@@ -197,6 +256,15 @@ async function main() {
   for (const indicator of INDICATORS) {
     const count = countries.filter((c) => c.stats[indicator.key]).length;
     console.log(`  ${indicator.key.padEnd(15)} ${count} countries`);
+  }
+
+  // Flag any capital that looks incomplete, so it can be added to
+  // CAPITAL_FIXES at the top of this file.
+  const suspect = countries.filter(
+    (c) => !c.capital.name || !c.capital.lat || !c.capital.lon
+  );
+  if (suspect.length > 0) {
+    console.log(`\nCapitals to check: ${suspect.map((c) => c.name).join(', ')}`);
   }
 }
 

@@ -1,0 +1,279 @@
+/* shared/map.css
+ *
+ * How the world map looks. Goes with shared/map.js, and is used by every
+ * game that has a map.
+ *
+ * To put a map on a page:
+ *   <div class="map-frame">
+ *     <svg id="map"></svg>
+ *     <div class="map-controls"> ...zoom buttons... </div>
+ *   </div>
+ */
+
+:root {
+  /* The map itself */
+  --map-sea-light: #d9e9ea;
+  --map-sea-deep: #b5d1d6;
+  --map-land: #f1e6cc;
+  --map-other-land: #e6dcc4; /* land that isn't one of our 195 countries */
+  --map-line: #8d7758; /* borders, in brown ink */
+  --map-shallows: #f3fbfa; /* the pale band of shallow water round coasts */
+  --map-grid: #5f7f86; /* latitude and longitude lines */
+
+  /* The colours a country can be given. Games pick from these by setting
+     a "state" on the country (see setState in map.js). */
+  --start: #7d5fc4; /* purple */
+  --end: #1f8fa0; /* teal */
+  --chain: #5f9e52; /* green */
+  --wrong: #c9503c; /* red */
+  --loose: #cf9426; /* amber */
+}
+
+/* ---- The frame the map sits in ------------------------------------------- */
+.map-frame {
+  position: relative; /* so the zoom buttons and paper grain can sit on top */
+  /* aspect-ratio keeps the map the same shape at any width */
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  /* The sea: lighter in the middle, deeper towards the edges */
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    var(--map-sea-light),
+    var(--map-sea-deep)
+  );
+  box-shadow: var(--shadow);
+}
+
+/* Paper grain and a soft shadow round the inside edge, laid over the map.
+   pointer-events: none lets clicks and drags pass through to the map. */
+.map-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--grain);
+  box-shadow: inset 0 0 40px rgba(120, 95, 60, 0.28);
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.map-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  /* Tells phones "the map handles touches itself", so dragging or pinching
+     the map moves the map, not the whole page */
+  touch-action: none;
+  user-select: none;
+}
+
+.map-frame svg.is-dragging {
+  cursor: grabbing;
+}
+
+/* A taller map on phones, since their screens are narrow */
+@media (max-width: 640px) {
+  .map-frame {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+/* ---- The layers of the map ------------------------------------------------ */
+
+/* Every line on the map keeps the same thickness however far it is zoomed. */
+.map-halo,
+.map-grid,
+.map-background,
+.map-country,
+.map-dot,
+.map-ring,
+.map-arrow {
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The pale band of shallow water around the coasts. It is a copy of all
+   the land, drawn underneath with a very thick pale outline, so only the
+   part sticking out past the coast can be seen. Two layers (a wide faint
+   one and a narrow strong one) make the edge fade softly. */
+.map-halo {
+  fill: none;
+  stroke: var(--map-shallows);
+}
+
+.map-halo-wide {
+  stroke-width: 14;
+  opacity: 0.45;
+}
+
+.map-halo-narrow {
+  stroke-width: 6;
+  opacity: 0.9;
+}
+
+/* Latitude and longitude lines */
+.map-grid {
+  fill: none;
+  stroke: var(--map-grid);
+  stroke-width: 0.5;
+  opacity: 0.25;
+}
+
+.map-country,
+.map-dot {
+  fill: var(--map-land);
+  stroke: var(--map-line);
+  stroke-width: 0.8;
+  transition: fill 0.3s ease;
+}
+
+/* Land that isn't in play is a shade greyer */
+.map-background {
+  fill: var(--map-other-land);
+  stroke: var(--map-line);
+  stroke-width: 0.8;
+}
+
+/* The dots that mark tiny countries */
+.map-dot {
+  fill: var(--map-line);
+  stroke: none;
+  opacity: 0.55;
+}
+
+/* ---- Blank map --------------------------------------------------------------
+ * The land is shown, but with no border lines. Every country that has no
+ * colour yet gets an outline in the SAME colour as the land, so neighbouring
+ * countries merge into one plain shape. (Removing the outline altogether
+ * would leave hairline gaps.) */
+.is-blank .map-background,
+.is-blank .map-country:not([data-state]) {
+  fill: var(--map-land);
+  stroke: var(--map-land);
+}
+
+/* The dots marking tiny countries would give their positions away */
+.is-blank .map-dot:not([data-state]) {
+  display: none;
+}
+
+/* ---- Country colours ----------------------------------------------------------
+ * A game gives a country a state, and the state picks its colour. These
+ * selectors also colour any chip or legend entry with the same data-state,
+ * so the map and the labels around it always match. */
+[data-state='start'] {
+  --state-colour: var(--start);
+}
+[data-state='end'] {
+  --state-colour: var(--end);
+}
+[data-state='chain'],
+[data-state='current'],
+[data-state='right'] {
+  --state-colour: var(--chain);
+}
+[data-state='wrong'],
+[data-state='missed'] {
+  --state-colour: var(--wrong);
+}
+[data-state='loose'] {
+  --state-colour: var(--loose);
+}
+
+.map-country[data-state],
+.map-dot[data-state] {
+  fill: var(--state-colour);
+  stroke: var(--text);
+  stroke-width: 1.1;
+  opacity: 1;
+}
+
+/* A heavier outline, for the country the player is standing on */
+.map-country[data-state='current'],
+.map-dot[data-state='current'] {
+  stroke-width: 2.6;
+}
+
+/* A country found only after a wrong guess: a paler red than a fresh mistake */
+.map-country[data-state='missed'],
+.map-dot[data-state='missed'] {
+  fill: #e3a394;
+}
+
+/* ---- Marks: the arrow and the ring ----------------------------------------------
+ * Marks never block taps, so you can still pick a country underneath one. */
+.map-marks {
+  pointer-events: none;
+}
+
+.map-arrow {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3.5;
+}
+
+/* The pale copy underneath that makes the arrow stand out */
+.map-arrow-edge {
+  stroke: var(--surface);
+  stroke-width: 8;
+}
+
+.map-arrow-spot {
+  fill: var(--text);
+  stroke: var(--surface);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-ring {
+  fill: none;
+  stroke: var(--wrong);
+  stroke-width: 3.5;
+  stroke-dasharray: 8 6;
+  animation: ring-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---- The + / - / fit buttons in the corner of the map -------------------------- */
+.map-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1; /* above the paper grain */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-controls button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 2px 0 var(--border);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-controls button:hover {
+  background: var(--surface-2);
+}
+
+.map-controls button:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+}

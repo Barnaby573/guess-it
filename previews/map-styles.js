@@ -1,7 +1,7 @@
 // previews/map-styles.js
 //
 // Draws the preview maps on map-styles.html. This is a scratch file for
-// choosing a look; the real games use games/border-chain/map.js.
+// choosing a look; the real games use shared/map.js.
 
 import mapData from '../data/map.json';
 

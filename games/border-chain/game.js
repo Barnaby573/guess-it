@@ -14,8 +14,8 @@
 //   8. Wiring up      - connecting buttons to the functions above
 //
 // Two helper files do the specialist work:
-//   routes.js - which countries connect, and shortest routes
-//   map.js    - drawing and zooming the map
+//   routes.js        - which countries connect, and shortest routes
+//   shared/map.js    - drawing and zooming the map (used by other games too)
 
 import data from '../../data/countries.json';
 import { renderHeader } from '../../shared/header.js';
@@ -27,7 +27,7 @@ import {
   pickPair,
   linkedToStart,
 } from './routes.js';
-import { createMap } from './map.js';
+import { createMap } from '../../shared/map.js';
 
 // ===========================================================================
 // 1. SETUP

@@ -22,6 +22,7 @@ export default defineConfig({
         // Games - add a new line here each time a game is added
         higherLower: resolve(import.meta.dirname, 'games/higher-lower/index.html'),
         borderChain: resolve(import.meta.dirname, 'games/border-chain/index.html'),
+        capitalDrop: resolve(import.meta.dirname, 'games/capital-drop/index.html'),
       },
     },
   },

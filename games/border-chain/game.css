@@ -1,31 +1,12 @@
 /* games/border-chain/game.css
  *
  * Styles for the parts unique to Border Chain: the options screen, the
- * map, the text box and the chain of chips.
+ * text box and the chain of chips.
  *
  * Colours and buttons come from shared/base.css.
- * The title, pickers, top bar and result pop-up come from
- * shared/game-ui.css.
+ * The title, pickers, top bar and result pop-up come from shared/game-ui.css.
+ * The map and its colours come from shared/map.css.
  */
-
-/* The colours used for countries, shared by the map, the chips and the
-   legend so they always match. */
-:root {
-  --start: #7d5fc4; /* purple: where you begin */
-  --end: #1f8fa0; /* teal: where you're going */
-  --chain: #5f9e52; /* green: on your route */
-  --wrong: #c9503c; /* red: a wrong answer (strict rules) */
-  --loose: #cf9426; /* amber: not linked to your route yet (free entry) */
-
-  /* The map itself */
-  --map-sea-light: #d9e9ea;
-  --map-sea-deep: #b5d1d6;
-  --map-land: #f1e6cc;
-  --map-other-land: #e6dcc4; /* land that isn't one of our 195 countries */
-  --map-line: #8d7758; /* borders, in brown ink */
-  --map-shallows: #f3fbfa; /* the pale band of shallow water round coasts */
-  --map-grid: #5f7f86; /* latitude and longitude lines */
-}
 
 /* ---- Options screen ------------------------------------------------------ */
 .option-groups {
@@ -93,195 +74,6 @@
   color: var(--muted);
 }
 
-/* ---- The map --------------------------------------------------------------- */
-.map-frame {
-  position: relative; /* so the zoom buttons and paper grain can sit on top */
-  /* aspect-ratio keeps the map the same shape at any width */
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  /* The sea: lighter in the middle, deeper towards the edges */
-  background: radial-gradient(
-    ellipse at 50% 45%,
-    var(--map-sea-light),
-    var(--map-sea-deep)
-  );
-  box-shadow: var(--shadow);
-}
-
-/* Paper grain and a soft shadow round the inside edge, laid over the map.
-   pointer-events: none lets clicks and drags pass through to the map. */
-.map-frame::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: var(--grain);
-  box-shadow: inset 0 0 40px rgba(120, 95, 60, 0.28);
-  mix-blend-mode: multiply;
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-#map {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  /* Tells phones "the map handles touches itself", so dragging or pinching
-     the map moves the map, not the whole page */
-  touch-action: none;
-  user-select: none;
-}
-
-#map.is-dragging {
-  cursor: grabbing;
-}
-
-/* Every shape on the map keeps the same line thickness however far the
-   map is zoomed. */
-.map-halo,
-.map-grid,
-.map-background,
-.map-country,
-.map-dot {
-  vector-effect: non-scaling-stroke;
-  stroke-linejoin: round;
-}
-
-/* The pale band of shallow water around the coasts. It is a copy of all
-   the land, drawn underneath with a very thick pale outline, so only the
-   part sticking out past the coast can be seen. Two layers (a wide faint
-   one and a narrow strong one) make the edge fade softly. */
-.map-halo {
-  fill: none;
-  stroke: var(--map-shallows);
-}
-
-.map-halo-wide {
-  stroke-width: 14;
-  opacity: 0.45;
-}
-
-.map-halo-narrow {
-  stroke-width: 6;
-  opacity: 0.9;
-}
-
-/* Latitude and longitude lines */
-.map-grid {
-  fill: none;
-  stroke: var(--map-grid);
-  stroke-width: 0.5;
-  opacity: 0.25;
-}
-
-.map-country,
-.map-dot {
-  fill: var(--map-land);
-  stroke: var(--map-line);
-  stroke-width: 0.8;
-  transition: fill 0.3s ease;
-}
-
-/* Land that isn't in play is a shade greyer */
-.map-background {
-  fill: var(--map-other-land);
-  stroke: var(--map-line);
-  stroke-width: 0.8;
-}
-
-/* The dots that mark tiny countries */
-.map-dot {
-  fill: var(--map-line);
-  stroke: none;
-  opacity: 0.55;
-}
-
-/* BLANK MAP: the land is shown, but with no border lines.
-   Every country that has no colour yet gets an outline in the SAME colour
-   as the land, so neighbouring countries merge into one plain shape.
-   (Removing the outline altogether would leave hairline gaps.)
-   game.js gives a country a data-state when it is the start, the target,
-   or has been named; those keep their colours. */
-.is-blank .map-background,
-.is-blank .map-country:not([data-state]) {
-  fill: var(--map-land);
-  stroke: var(--map-land);
-}
-
-/* The dots marking tiny countries would give their positions away */
-.is-blank .map-dot:not([data-state]) {
-  display: none;
-}
-
-/* The colours. These selectors also colour the chips and the legend. */
-[data-state='start'] {
-  --state-colour: var(--start);
-}
-[data-state='end'] {
-  --state-colour: var(--end);
-}
-[data-state='chain'],
-[data-state='current'] {
-  --state-colour: var(--chain);
-}
-[data-state='wrong'] {
-  --state-colour: var(--wrong);
-}
-[data-state='loose'] {
-  --state-colour: var(--loose);
-}
-
-.map-country[data-state],
-.map-dot[data-state] {
-  fill: var(--state-colour);
-  stroke: var(--text);
-  stroke-width: 1.1;
-  opacity: 1;
-}
-
-/* The country you are standing on (strict rules) gets a heavy outline */
-.map-country[data-state='current'],
-.map-dot[data-state='current'] {
-  stroke-width: 2.6;
-}
-
-/* The + / - / fit buttons in the corner of the map */
-.map-controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1; /* above the paper grain */
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.map-controls button {
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 2px 0 var(--border);
-  color: var(--text);
-  font: inherit;
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.map-controls button:hover {
-  background: var(--surface-2);
-}
-
-.map-controls button:focus-visible {
-  outline: 3px solid var(--accent-2);
-  outline-offset: 2px;
-}
-
 /* ---- Legend ---------------------------------------------------------------- */
 .legend {
   display: flex;
@@ -293,7 +85,8 @@
   font-size: 0.75rem;
 }
 
-/* The little coloured square before each legend label */
+/* The little coloured square before each legend label. Its colour comes
+   from the entry's data-state (see "Country colours" in map.css). */
 .legend span::before {
   content: '';
   display: inline-block;
@@ -473,12 +266,4 @@ button.chip:hover {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-/* ---- Phones -------------------------------------------------------------------------
- * A taller map, since phone screens are narrow. */
-@media (max-width: 640px) {
-  .map-frame {
-    aspect-ratio: 4 / 3;
-  }
 }

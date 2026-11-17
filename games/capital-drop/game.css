@@ -1,0 +1,202 @@
+/* games/capital-drop/game.css
+ *
+ * Styles for the parts unique to Capital Drop: the region buttons, the
+ * question above the map, and the list of missed capitals.
+ *
+ * Colours and buttons come from shared/base.css.
+ * The title, top bar and result pop-up come from shared/game-ui.css.
+ * The map, its colours, the arrow and the ring come from shared/map.css.
+ */
+
+/* ---- Region screen ------------------------------------------------------- */
+
+/* Region buttons: 2 per row on phones, 3 per row on bigger screens */
+.region-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .region-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.region-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 16px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.region-button:hover {
+  background: var(--surface-2);
+  transform: translateY(-3px);
+}
+
+.region-button:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.region-emoji {
+  font-size: 1.8rem;
+}
+
+.region-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.region-detail {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* "Whole world" stretches across the whole row with a bolder edge */
+.region-world {
+  grid-column: 1 / -1;
+  border: 2px solid var(--accent);
+}
+
+/* Shown in place of the buttons while the map is loading */
+.loading {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---- The question above the map ------------------------------------------- */
+.prompt {
+  margin: 6px 0 12px;
+  text-align: center;
+}
+
+.prompt-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* The capital city, as big as will fit */
+.prompt-capital {
+  font-size: clamp(1.7rem, 6.5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--accent);
+}
+
+.prompt-progress {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* ---- The map ---------------------------------------------------------------
+ * A little taller than the standard map frame, because the whole game is
+ * played on it. */
+.map-frame {
+  aspect-ratio: 16 / 10;
+}
+
+/* The cursor is a pointing hand over countries, to show they can be tapped */
+.map-frame svg .map-country,
+.map-frame svg .map-dot {
+  cursor: pointer;
+}
+
+/* Countries light up as the mouse passes over them, but only ones that
+   haven't been coloured in yet. (hover: hover means "this device has a
+   mouse", so phones don't get a highlight stuck on after a tap.) */
+@media (hover: hover) {
+  .map-country:not([data-state]):hover {
+    fill: #e4d3a6;
+  }
+}
+
+/* Tiny countries' dots are darker here, since they're tap targets */
+.map-dot {
+  opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+  .map-frame {
+    aspect-ratio: 4 / 5; /* taller than wide: a portrait map for phones */
+  }
+}
+
+/* ---- Feedback line ---------------------------------------------------------- */
+.message {
+  min-height: 2.8em; /* room for two lines, so the page doesn't jump */
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.message[data-tone='good'] {
+  color: #3f7a34;
+}
+
+.message[data-tone='bad'] {
+  color: #b23c27;
+}
+
+/* ---- Extra bits inside the result pop-up ------------------------------------- */
+.result-region {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.new-best {
+  margin-top: 6px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+/* The list of missed capitals. It scrolls if it gets long. */
+.missed-box {
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.9rem;
+}
+
+.missed-label {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.missed-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  text-align: left;
+}
+
+.missed-row strong {
+  text-align: right;
+}
