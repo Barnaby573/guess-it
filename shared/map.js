@@ -4,12 +4,24 @@
 // needs a map uses this file (and its stylesheet, shared/map.css).
 //
 // The map is an SVG: a picture made of shapes described in text, which
-// stays sharp at any zoom level. Zooming works by changing the SVG's
-// "viewBox", which says which rectangle of the map is currently on screen.
+// stays sharp at any zoom level.
+//
+// HOW IT STAYS FAST
+// Every shape is drawn ONCE, when the map is created, inside a single group
+// (<g>) called "world". Panning and zooming never touch the shapes: they
+// only change the world group's "transform" (how far it is moved and how
+// much it is scaled). On top of that:
+//   - Pan/zoom updates are bunched up and applied at most once per screen
+//     refresh (using requestAnimationFrame), however fast the mouse,
+//     trackpad or fingers send events.
+//   - Dots and marks are only resized when the zoom level changes, not on
+//     every pan.
+//   - While the map is moving, countries ignore the mouse, so the browser
+//     doesn't have to work out hover effects mid-drag.
 //
 // How this file is organised:
 //   1. Drawing     - building the layers of the map
-//   2. Camera      - gliding the view from place to place
+//   2. Camera      - working out and applying the view
 //   3. By hand     - zooming, dragging and tapping
 //   4. Marks       - the arrow and ring drawn on top of the map
 //   5. Controls    - the functions a game can call
@@ -43,7 +55,9 @@ function svgElement(name, attributes = {}) {
 export function createMap(svg, mapData, { onPick } = {}) {
   const wholeWorld = [0, 0, mapData.width, mapData.height];
 
-  // The rectangle currently on screen: [x, y, width, height].
+  // The rectangle of the map we want on screen: [x, y, width, height], in
+  // map units. Changing this doesn't move anything by itself; render()
+  // turns it into the world group's transform.
   let view = wholeWorld;
   // Goes up by one each time a new camera move starts, so an older move
   // that is still running knows to stop.
@@ -75,9 +89,17 @@ export function createMap(svg, mapData, { onPick } = {}) {
   }
 
   // ===========================================================================
-  // 1. DRAWING
+  // 1. DRAWING (happens once)
   // ===========================================================================
   svg.innerHTML = '';
+  // No viewBox: one unit inside the <svg> is one screen pixel. All the
+  // moving and scaling is done by the world group's transform instead.
+  svg.removeAttribute('viewBox');
+
+  // Everything on the map lives in this one group. Moving the map means
+  // changing this group's transform and nothing else.
+  const world = svgElement('g', { class: 'map-world' });
+  svg.append(world);
 
   // The map is built in layers, bottom first:
   //   1. shallow water round the coasts   2. latitude/longitude lines
@@ -93,7 +115,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     Object.values(mapData.countries)
       .map((shape) => shape.d)
       .join('');
-  svg.append(
+  world.append(
     svgElement('path', { class: 'map-halo map-halo-wide', d: allLand }),
     svgElement('path', { class: 'map-halo map-halo-narrow', d: allLand })
   );
@@ -108,10 +130,10 @@ export function createMap(svg, mapData, { onPick } = {}) {
     const [, y] = project(0, latitude);
     gridLines += `M0 ${y}H${mapData.width}`; // a horizontal line
   }
-  svg.append(svgElement('path', { class: 'map-grid', d: gridLines }));
+  world.append(svgElement('path', { class: 'map-grid', d: gridLines }));
 
   // 3. Land that isn't one of our 195 countries (Greenland, for example).
-  svg.append(svgElement('path', { class: 'map-background', d: mapData.background }));
+  world.append(svgElement('path', { class: 'map-background', d: mapData.background }));
 
   // 4. The countries. Each remembers its code in "data-code", which is how
   //    we know which country was tapped.
@@ -124,7 +146,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
       d: shape.d,
       'data-code': code,
     });
-    svg.append(shapes[code]);
+    world.append(shapes[code]);
   }
 
   // 5. Tiny countries (Monaco, Andorra...) get a dot so they can be seen
@@ -141,17 +163,17 @@ export function createMap(svg, mapData, { onPick } = {}) {
     });
     dotLayer.append(dots[code]);
   }
-  svg.append(dotLayer);
+  world.append(dotLayer);
 
   // 6. Marks drawn over everything else. Filled in by drawMarks() below.
   const markLayer = svgElement('g', { class: 'map-marks' });
-  svg.append(markLayer);
+  world.append(markLayer);
 
   // ===========================================================================
   // 2. CAMERA
   // ===========================================================================
 
-  // How many map units one screen pixel covers at the current zoom.
+  // How many map units one screen pixel covers for the current view.
   function unitsPerPixel() {
     const units = Math.max(view[2] / svg.clientWidth, view[3] / svg.clientHeight);
     // A hidden map has no size, which would give a nonsense answer.
@@ -159,16 +181,54 @@ export function createMap(svg, mapData, { onPick } = {}) {
     return Number.isFinite(units) && units > 0 ? units : view[2] / 700;
   }
 
-  // Puts a rectangle of the map on screen.
-  function showView(newView) {
-    view = newView;
-    svg.setAttribute('viewBox', newView.join(' '));
-    // Dots and marks are sized in screen pixels, so they need redrawing
-    // whenever the zoom changes.
-    const radius = 6 * unitsPerPixel();
-    for (const dot of Object.values(dots)) dot.setAttribute('r', radius);
-    drawMarks();
+  // The zoom level the dots and marks were last sized for.
+  let sizedForZoom = null;
+  // True while a render is waiting for the next screen refresh.
+  let renderQueued = false;
+
+  // Moves the world group so that "view" fills the map. This is the only
+  // thing that runs on every frame of a pan or zoom.
+  function render() {
+    renderQueued = false;
+    const width = svg.clientWidth;
+    const height = svg.clientHeight;
+    // A hidden map has no size. Skip; the resize watcher below calls
+    // render again as soon as the map appears.
+    if (!width || !height) return;
+
+    // Scale so the whole view fits, then centre it (like a photo frame).
+    const zoom = Math.min(width / view[2], height / view[3]);
+    const moveX = (width - view[2] * zoom) / 2 - view[0] * zoom;
+    const moveY = (height - view[3] * zoom) / 2 - view[1] * zoom;
+    world.setAttribute('transform', `translate(${moveX} ${moveY}) scale(${zoom})`);
+
+    // Dots and marks are sized in screen pixels, so they only need
+    // updating when the zoom changes. A pan leaves them alone.
+    if (zoom !== sizedForZoom) {
+      sizedForZoom = zoom;
+      const radius = 6 / zoom; // 6 screen pixels, in map units
+      for (const dot of Object.values(dots)) dot.setAttribute('r', radius);
+      drawMarks();
+    }
   }
+
+  // Changes the view. By default the actual move waits for the next screen
+  // refresh, so a burst of mouse or touch events causes just one redraw.
+  // now = true redraws straight away (used when we're already inside a
+  // screen refresh, or when nothing should be in between).
+  function showView(newView, now = false) {
+    view = newView;
+    if (now) {
+      render();
+    } else if (!renderQueued) {
+      renderQueued = true;
+      requestAnimationFrame(render);
+    }
+  }
+
+  // If the map changes size (window resized, phone rotated, map shown),
+  // redraw so the view still fits.
+  new ResizeObserver(() => showView(view)).observe(svg);
 
   // The smallest box containing all the given countries' mainlands.
   function boxAround(codes) {
@@ -211,7 +271,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     const thisMove = moveNumber;
 
     if (reducedMotion || milliseconds === 0) {
-      showView(target);
+      showView(target, true);
       return;
     }
 
@@ -228,7 +288,9 @@ export function createMap(svg, mapData, { onPick } = {}) {
           : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
       // Move each of x, y, width, height part of the way to its target.
-      showView(from.map((value, i) => value + (target[i] - value) * eased));
+      // We're already inside a screen refresh, so draw straight away.
+      markMoving();
+      showView(from.map((value, i) => value + (target[i] - value) * eased), true);
       if (progress < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
@@ -237,7 +299,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // If that happens, jump straight to the target once the time is up,
     // so the map is never left stuck in the wrong place.
     setTimeout(() => {
-      if (thisMove === moveNumber) showView(target);
+      if (thisMove === moveNumber) showView(target, true);
     }, milliseconds + 150);
   }
 
@@ -274,6 +336,18 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // A press that moves less than this many pixels counts as a tap.
   const TAP_WOBBLE = 8;
 
+  // While the map is moving (dragged, pinched, scrolled or gliding), the
+  // "is-moving" class is on the <svg>. map.css uses it to stop countries
+  // reacting to the mouse, so no hover effects are worked out mid-drag, and
+  // to hide the costly coastal halo. It comes off a moment after the last
+  // movement.
+  let stillTimer = null;
+  function markMoving() {
+    svg.classList.add('is-moving');
+    clearTimeout(stillTimer);
+    stillTimer = setTimeout(() => svg.classList.remove('is-moving'), 150);
+  }
+
   // Converts a position on the screen into a position on the map.
   function screenToMap(screenX, screenY) {
     const box = svg.getBoundingClientRect();
@@ -304,6 +378,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
   function takeOver() {
     userMoved = true;
     moveNumber += 1; // stop any camera glide that is still running
+    markMoving();
   }
 
   svg.addEventListener(
@@ -313,6 +388,8 @@ export function createMap(svg, mapData, { onPick } = {}) {
       takeOver();
       // deltaY is how far the wheel turned. Math.exp turns that into a
       // smooth multiplier: a small turn zooms a little, a big turn a lot.
+      // Trackpads send many small events; showView bunches them into one
+      // redraw per screen refresh.
       showView(zoomedView(Math.exp(event.deltaY * 0.0015), event.clientX, event.clientY));
     },
     { passive: false } // needed so preventDefault is allowed
@@ -379,6 +456,11 @@ export function createMap(svg, mapData, { onPick } = {}) {
     if (pointers.size === 0) svg.classList.remove('is-dragging');
 
     if (wasTap && onPick) {
+      // Countries ignore the pointer while the map is moving (see
+      // markMoving). A tap means it has stopped, so switch them back on
+      // before asking what was tapped.
+      clearTimeout(stillTimer);
+      svg.classList.remove('is-moving');
       // Ask the browser what is drawn at that exact spot. If it's a
       // country (or a tiny country's dot) it will have a data-code.
       const element = document.elementFromPoint(event.clientX, event.clientY);
@@ -402,10 +484,11 @@ export function createMap(svg, mapData, { onPick } = {}) {
   let arrow = null; // { from: [x, y], to: [x, y] }
   let ringCode = null; // the country with a ring round it
 
-  // Redraws the marks. Called whenever they change or the zoom changes,
-  // so the arrow and ring always stay the same size on screen.
+  // Redraws the marks. Called when they change or the zoom changes, so the
+  // arrow and ring always stay the same size on screen.
   function drawMarks() {
-    markLayer.innerHTML = '';
+    markLayer.replaceChildren();
+    if (!arrow && !ringCode) return;
     const pixel = unitsPerPixel(); // one screen pixel, in map units
 
     if (ringCode) {
@@ -465,9 +548,10 @@ export function createMap(svg, mapData, { onPick } = {}) {
       for (const code of Object.keys(shapes)) this.setState(code, null);
       arrow = null;
       ringCode = null;
+      drawMarks();
       moveNumber += 1; // stop any camera move from the last round
       userMoved = false;
-      showView(wholeWorld);
+      showView(wholeWorld, true);
     },
 
     // Colours a country. state is a word such as 'start', 'end', 'chain',
@@ -481,7 +565,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
       }
       // Move a coloured country to the front so its outline isn't covered
       // by its neighbours.
-      if (state) svg.insertBefore(shapes[code], dotLayer);
+      if (state) world.insertBefore(shapes[code], dotLayer);
     },
 
     // Moves the camera so all the given countries are on screen. This also

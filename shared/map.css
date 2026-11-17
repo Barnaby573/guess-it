@@ -29,9 +29,13 @@
   --loose: #cf9426; /* amber */
 }
 
-/* ---- The frame the map sits in ------------------------------------------- */
+/* ---- The frame the map sits in ------------------------------------------- *
+ * PERFORMANCE NOTE: keep effects off the map. Shadows, CSS filters and
+ * blend modes (like the paper grain used elsewhere on the site) all have to
+ * be recalculated every time the map moves, which made panning stutter on
+ * slower devices. The frame is deliberately plain. */
 .map-frame {
-  position: relative; /* so the zoom buttons and paper grain can sit on top */
+  position: relative; /* so the zoom buttons can sit on top */
   /* aspect-ratio keeps the map the same shape at any width */
   aspect-ratio: 16 / 9;
   overflow: hidden;
@@ -43,20 +47,6 @@
     var(--map-sea-light),
     var(--map-sea-deep)
   );
-  box-shadow: var(--shadow);
-}
-
-/* Paper grain and a soft shadow round the inside edge, laid over the map.
-   pointer-events: none lets clicks and drags pass through to the map. */
-.map-frame::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: var(--grain);
-  box-shadow: inset 0 0 40px rgba(120, 95, 60, 0.28);
-  mix-blend-mode: multiply;
-  opacity: 0.4;
-  pointer-events: none;
 }
 
 .map-frame svg {
@@ -72,6 +62,23 @@
 
 .map-frame svg.is-dragging {
   cursor: grabbing;
+}
+
+/* While the map is being dragged, pinched or scrolled, map.js adds
+   "is-moving". Countries then ignore the mouse entirely, so the browser
+   doesn't work out hover effects for every country the cursor passes. */
+.map-frame svg.is-moving .map-country,
+.map-frame svg.is-moving .map-dot {
+  pointer-events: none;
+}
+
+/* The shallow-water band round the coasts (.map-halo, below) is the most
+   expensive part of the map to draw: every coastline in the world, twice,
+   with thick lines. Measured on a Surface Go, hiding it while the map moves
+   took panning from about 12 to about 47 frames a second. It reappears as
+   soon as the map stops. */
+.map-frame svg.is-moving .map-halo {
+  display: none;
 }
 
 /* A taller map on phones, since their screens are narrow */

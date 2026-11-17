@@ -1,11 +1,27 @@
 // scripts/fetch-map.js
 //
 // Downloads country shapes and turns them into a compact file the browser
-// can draw quickly: data/map.json. Used by the Border Chain game.
+// can draw quickly: data/map.json. Used by Border Chain and Capital Drop.
 //
 // Run it with:   npm run fetch-map
 //
-// Source: Natural Earth (public domain map data), 1:50m scale.
+// Source: Natural Earth (public domain map data).
+//
+// WHICH SHAPES WE USE
+// Natural Earth comes at different levels of detail. The fewer points a
+// map has, the faster it pans and zooms, which matters a lot on slower
+// devices such as a Surface Go.
+//
+//   110m: simplified by hand for small-scale world maps. About 10,600
+//         points for the whole world. This is the same data as the popular
+//         "world-atlas 110m" map. We use it for every country it includes.
+//   50m:  more detailed. About 8 times as many points. We use it ONLY for
+//         the 28 small countries that 110m leaves out (Andorra, Monaco,
+//         Singapore, Malta and most island nations).
+//
+// Those 28 are islands or tiny states surrounded by one neighbour, and they
+// are drawn on top of the bigger countries, so mixing the two levels of
+// detail doesn't show.
 //
 // What this script does to the raw data:
 //   1. Flattens the globe onto a rectangle (a "map projection").
@@ -16,8 +32,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const SOURCE_URL =
-  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson';
+const SOURCE_BASE =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/';
+const SIMPLE_URL = SOURCE_BASE + 'ne_110m_admin_0_countries.geojson';
+const DETAILED_URL = SOURCE_BASE + 'ne_50m_admin_0_countries.geojson';
 
 // ---- Map projection ---------------------------------------------------------
 // We use the Mercator projection, the same one most online maps use.
@@ -143,6 +161,20 @@ function isOutsideFranceMainland(polygon) {
   );
 }
 
+// The 2-letter code a source shape belongs to.
+function codeOf(feature) {
+  const properties = feature.properties;
+  return CODE_BY_NAME[properties.NAME] ?? properties.ISO_A2_EH;
+}
+
+async function download(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status}): ${url}`);
+  }
+  return response.json();
+}
+
 async function main() {
   const dataFolder = resolve(import.meta.dirname, '..', 'data');
 
@@ -152,22 +184,22 @@ async function main() {
   );
   const ourCodes = new Set(ours.countries.map((country) => country.iso2));
 
-  console.log('Fetching map shapes (about 3 MB)...');
-  const response = await fetch(SOURCE_URL);
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status}): ${SOURCE_URL}`);
-  }
-  const source = await response.json();
+  console.log('Fetching map shapes...');
+  const simple = await download(SIMPLE_URL);
+  const detailed = await download(DETAILED_URL);
+
+  // Which of our countries does the simple map include?
+  const inSimple = new Set(simple.features.map(codeOf));
+  const fromDetailed = [...ourCodes].filter((code) => !inSimple.has(code));
 
   // Collect the polygons for each of our countries, and everything else
   // (Greenland, Western Sahara, Taiwan...) as plain background land.
   const polygonsByCode = new Map();
   const backgroundPolygons = [];
 
-  for (const feature of source.features) {
-    const properties = feature.properties;
-    const code = CODE_BY_NAME[properties.NAME] ?? properties.ISO_A2_EH;
-    if (code === 'AQ') continue; // Antarctica is off the bottom of our map
+  function addFeature(feature) {
+    const code = codeOf(feature);
+    if (code === 'AQ') return; // Antarctica is off the bottom of our map
 
     for (const polygon of polygonsOf(feature)) {
       const isOurs =
@@ -183,8 +215,18 @@ async function main() {
     }
   }
 
+  // Everything from the simple map first...
+  for (const feature of simple.features) addFeature(feature);
+  // ...then just the missing countries from the detailed map. Adding them
+  // last means they come last in the file, so they are drawn ON TOP of
+  // their bigger neighbours (e.g. Monaco on top of France).
+  for (const feature of detailed.features) {
+    if (fromDetailed.includes(codeOf(feature))) addFeature(feature);
+  }
+
   // ---- Build each country's path --------------------------------------------
   const countries = {};
+  let totalPoints = 0;
   for (const [code, polygons] of polygonsByCode) {
     // Project every ring of every polygon onto the flat map.
     const projected = polygons.map((polygon) =>
@@ -207,7 +249,10 @@ async function main() {
         if (!path && polygon === mainland && index === 0) {
           path = ringToPath(ring, 1);
         }
-        if (path) paths.push(path);
+        if (path) {
+          paths.push(path);
+          totalPoints += ring.length;
+        }
       }
     }
 
@@ -227,7 +272,7 @@ async function main() {
 
   // ---- Save -------------------------------------------------------------------
   const output = {
-    source: 'Natural Earth (naturalearthdata.com), public domain',
+    source: 'Natural Earth (naturalearthdata.com), public domain. 110m, with 50m for small countries.',
     width: WIDTH,
     height: HEIGHT,
     background: backgroundPaths.join(''),
@@ -241,6 +286,8 @@ async function main() {
   const tiny = Object.keys(countries).filter((code) => countries[code].tiny);
   console.log(`\nSaved data/map.json (${Math.round(text.length / 1024)} KB)`);
   console.log(`  map size: ${WIDTH} x ${HEIGHT} units`);
+  console.log(`  ${totalPoints} points in the 195 countries`);
+  console.log(`  ${fromDetailed.length} small countries taken from the detailed map: ${fromDetailed.join(', ')}`);
   console.log(`  ${Object.keys(countries).length} of ${ourCodes.size} countries have a shape`);
   console.log(`  ${tiny.length} are tiny and get a dot: ${tiny.join(', ')}`);
   if (missing.length > 0) console.log(`  no shape for: ${missing.join(', ')}`);

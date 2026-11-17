@@ -122,9 +122,10 @@
 
 /* Countries light up as the mouse passes over them, but only ones that
    haven't been coloured in yet. (hover: hover means "this device has a
-   mouse", so phones don't get a highlight stuck on after a tap.) */
+   mouse", so phones don't get a highlight stuck on after a tap.)
+   Switched off while the map is moving, so dragging stays smooth. */
 @media (hover: hover) {
-  .map-country:not([data-state]):hover {
+  .map-frame svg:not(.is-moving) .map-country:not([data-state]):hover {
     fill: #e4d3a6;
   }
 }
