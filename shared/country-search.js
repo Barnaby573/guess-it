@@ -149,5 +149,26 @@ export function createCountrySearch(countries) {
     return null;
   }
 
-  return { suggest, resolve };
+  // For games where answers are accepted while you type, without pressing
+  // Enter. Returns the country if the text is EXACTLY one of its names, and
+  // no other country's name starts with the same text. Otherwise null.
+  //
+  // That second check matters: "Niger" is a whole country, but it is also
+  // the start of "Nigeria", so we wait in case the player keeps typing.
+  // Same for "Guinea" (Guinea-Bissau) and "Dominica" (Dominican Republic).
+  // The player can press Enter to accept "Niger" straight away.
+  function matchWhileTyping(text) {
+    const query = normalise(text);
+    if (query.length === 0) return null;
+
+    const exact = entries.find((entry) => entry.key === query);
+    if (!exact) return null;
+
+    const startOfAnother = entries.some(
+      (entry) => entry.country !== exact.country && entry.key.startsWith(query)
+    );
+    return startOfAnother ? null : exact.country;
+  }
+
+  return { suggest, resolve, matchWhileTyping };
 }

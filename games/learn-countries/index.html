@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Makes the page fit phone screens properly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learn Countries | Guess It</title>
+    <meta
+      name="description"
+      content="Learn where every country is. Find them on the map, or type as many as you can and watch the map fill up."
+    />
+    <!-- Colours the browser's own bar on phones to match the paper -->
+    <meta name="theme-color" content="#f4ecdb" />
+    <!-- A map emoji as the little icon in the browser tab -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>"
+    />
+    <!-- Four stylesheets: site-wide, shared by all games, the map, then this game -->
+    <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="../../shared/game-ui.css" />
+    <link rel="stylesheet" href="../../shared/map.css" />
+    <link rel="stylesheet" href="./game.css" />
+  </head>
+  <body>
+    <!-- The header is added here by shared/header.js -->
+
+    <main class="container">
+      <!-- ============ SCREEN 1: choose a mode and a region ============ -->
+      <section id="region-screen">
+        <h1 class="title">🗺️ Learn Countries</h1>
+        <p class="subtitle">
+          Two ways to learn where every country is. Pick a mode, then a region.
+        </p>
+
+        <!-- "Find on map" / "Type them in". The buttons are created by game.js -->
+        <div class="picker mode-picker" id="mode-picker" role="group" aria-label="Mode"></div>
+        <p class="mode-help" id="mode-help"></p>
+
+        <!-- The region buttons are created by game.js -->
+        <div class="region-grid" id="region-grid"></div>
+      </section>
+
+      <!-- ============ SCREEN 2: the game ============ -->
+      <section id="game-screen" hidden>
+        <!-- Top bar: back button, timer and progress -->
+        <div class="hud">
+          <button class="hud-back" id="back-button" type="button">← Regions</button>
+          <div class="hud-scores">
+            <span class="pill">⏱ <strong id="time">0:00</strong></span>
+            <span class="pill">✓ <strong id="count">0/0</strong></span>
+          </div>
+        </div>
+
+        <!-- FIND MODE: the country to find -->
+        <div class="prompt" id="find-prompt">
+          <p class="prompt-label">Find</p>
+          <h2 class="prompt-country" id="country-name"></h2>
+          <!-- e.g. "7 of 22 · 5 right · 1 missed", filled in by game.js -->
+          <p class="prompt-progress" id="progress"></p>
+        </div>
+
+        <!-- TYPE MODE: where the player types countries -->
+        <form class="type-form" id="type-form" autocomplete="off" hidden>
+          <input
+            class="type-input"
+            id="type-input"
+            type="text"
+            placeholder="Type a country"
+            aria-label="Type a country"
+            autocomplete="off"
+            autocapitalize="words"
+            spellcheck="false"
+          />
+          <button class="btn btn-primary" type="submit">Enter</button>
+        </form>
+
+        <!-- The map. The shapes inside are drawn by shared/map.js -->
+        <div class="map-frame">
+          <svg id="map" role="img" aria-label="World map"></svg>
+          <!-- Zoom buttons. You can also scroll, drag or pinch the map. -->
+          <div class="map-controls">
+            <button id="zoom-in-button" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+            <button id="zoom-out-button" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+            <button id="zoom-fit-button" type="button" aria-label="Show whole region" title="Show whole region">⤢</button>
+          </div>
+        </div>
+
+        <!-- Feedback on the last answer. aria-live makes screen readers read it out. -->
+        <p class="message" id="message" aria-live="polite"></p>
+
+        <!-- TYPE MODE: stop and see what was missed -->
+        <button class="give-up" id="give-up-button" type="button" hidden>
+          Give up and show the rest
+        </button>
+      </section>
+    </main>
+
+    <!-- ============ Result pop-up ============ -->
+    <div class="overlay" id="result" hidden>
+      <div class="modal" role="dialog" aria-labelledby="result-title">
+        <h2 id="result-title"></h2>
+        <!-- e.g. "Western Europe · Type them in" -->
+        <p class="result-region" id="result-region"></p>
+        <p class="new-best" id="new-best" hidden>🎉 New best!</p>
+
+        <div class="final-scores">
+          <div>
+            <span class="final-number" id="final-score">0/0</span>
+            <span class="final-label">Score</span>
+          </div>
+          <div>
+            <span class="final-number" id="final-time">0:00</span>
+            <span class="final-label">Time</span>
+          </div>
+        </div>
+
+        <!-- Filled in by game.js with the countries that were missed -->
+        <div class="missed-box" id="missed-box"></div>
+
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="play-again-button" type="button">
+            Play again
+          </button>
+          <button class="btn" id="look-button" type="button">Look at the map</button>
+          <button class="btn" id="change-region-button" type="button">
+            Change region
+          </button>
+          <button class="btn" id="share-button" type="button">Share</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- type="module" lets game.js use "import" to load other files -->
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

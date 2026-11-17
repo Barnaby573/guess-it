@@ -1,8 +1,8 @@
-// games/capital-drop/regions.js
+// shared/regions.js
 //
-// The regions a player can choose in Capital Drop. Every one of the 195
-// countries belongs to exactly one region, so playing all the regions
-// covers the whole world once.
+// The regions a player can choose in the map games (Capital Drop and
+// Learn Countries). Every one of the 195 countries belongs to exactly one
+// region, so playing all the regions covers the whole world once.
 //
 // Countries are listed by their 2-letter ISO code. To move a country,
 // cut its code from one list and paste it into another.
