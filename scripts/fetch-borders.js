@@ -18,12 +18,13 @@ const SOURCE_URL =
 
 // OUR RULINGS
 //
-// The game uses mainland borders only. The source data includes a few
-// borders that only exist through a small overseas territory, so we remove
-// them here. Each pair is two 2-letter ISO codes.
-const REMOVED_BORDERS = [
-  ['ES', 'MA'], // Spain-Morocco: only via Ceuta and Melilla, in North Africa
-];
+// Borders listed here are taken out of the source data. Each pair is two
+// 2-letter ISO codes, e.g. ['XX', 'YY'].
+//
+// Spain and Morocco are deliberately NOT listed: they share real land
+// borders at Ceuta and Melilla, Spanish cities on the North African coast,
+// so that border counts in the game.
+const REMOVED_BORDERS = [];
 
 async function main() {
   const dataFolder = resolve(import.meta.dirname, '..', 'data');
