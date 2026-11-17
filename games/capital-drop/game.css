@@ -114,25 +114,12 @@
   aspect-ratio: 16 / 10;
 }
 
-/* The cursor is a pointing hand over countries, to show they can be tapped */
-.map-frame svg .map-country,
-.map-frame svg .map-dot {
+/* The cursor is a pointing hand over countries that can be the answer, to
+   show they can be tapped. (The lift-up highlight on hover comes from
+   shared/map.js and map.css.) */
+.map-frame svg .map-country:not(.is-out),
+.map-frame svg .map-spot {
   cursor: pointer;
-}
-
-/* Countries light up as the mouse passes over them, but only ones that
-   haven't been coloured in yet. (hover: hover means "this device has a
-   mouse", so phones don't get a highlight stuck on after a tap.)
-   Switched off while the map is moving, so dragging stays smooth. */
-@media (hover: hover) {
-  .map-frame svg:not(.is-moving) .map-country:not([data-state]):hover {
-    fill: #e4d3a6;
-  }
-}
-
-/* Tiny countries' dots are darker here, since they're tap targets */
-.map-dot {
-  opacity: 0.75;
 }
 
 @media (max-width: 640px) {

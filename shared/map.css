@@ -19,6 +19,8 @@
   --map-line: #8d7758; /* borders, in brown ink */
   --map-shallows: #f3fbfa; /* the pale band of shallow water round coasts */
   --map-grid: #5f7f86; /* latitude and longitude lines */
+  --map-out: #d9d4c5; /* countries that can't be the answer this round */
+  --map-out-line: #b5a98f;
 
   /* The colours a country can be given. Games pick from these by setting
      a "state" on the country (see setState in map.js). */
@@ -58,6 +60,8 @@
      the map moves the map, not the whole page */
   touch-action: none;
   user-select: none;
+  /* Stops a long press opening the phone's "save image" menu (hold to aim) */
+  -webkit-touch-callout: none;
 }
 
 .map-frame svg.is-dragging {
@@ -68,7 +72,7 @@
    "is-moving". Countries then ignore the mouse entirely, so the browser
    doesn't work out hover effects for every country the cursor passes. */
 .map-frame svg.is-moving .map-country,
-.map-frame svg.is-moving .map-dot {
+.map-frame svg.is-moving .map-spot {
   pointer-events: none;
 }
 
@@ -95,7 +99,9 @@
 .map-grid,
 .map-background,
 .map-country,
-.map-dot,
+.map-spot,
+.map-hover-edge,
+.map-hover-shape,
 .map-ring,
 .map-arrow {
   vector-effect: non-scaling-stroke;
@@ -130,8 +136,7 @@
   opacity: 0.25;
 }
 
-.map-country,
-.map-dot {
+.map-country {
   fill: var(--map-land);
   stroke: var(--map-line);
   stroke-width: 0.8;
@@ -145,11 +150,39 @@
   stroke-width: 0.8;
 }
 
-/* The dots that mark tiny countries */
-.map-dot {
-  fill: var(--map-line);
-  stroke: none;
-  opacity: 0.55;
+/* Rings round small countries (map.js shows them only while the country
+   is too small to see). The inside is see-through, but pointer-events: all
+   makes the whole circle count as that country for hovering and tapping. */
+.map-spot {
+  fill: none;
+  stroke: var(--map-line);
+  stroke-width: 1.2;
+  pointer-events: all;
+}
+
+.map-spot.is-hidden {
+  display: none;
+}
+
+/* The ring of the country under the mouse or aiming target */
+.map-spot.is-hovered {
+  fill: var(--text);
+  fill-opacity: 0.08;
+  stroke: var(--text);
+  stroke-width: 2.6;
+}
+
+/* ---- Out of play ------------------------------------------------------------
+ * Countries that can't be the answer this round (see setPlayable in map.js)
+ * are greyed out and lose their rings. Coloured countries (below) win over
+ * this, because their rules come later. */
+.map-country.is-out {
+  fill: var(--map-out);
+  stroke: var(--map-out-line);
+}
+
+.map-spot.is-out {
+  display: none;
 }
 
 /* ---- Blank map --------------------------------------------------------------
@@ -163,8 +196,8 @@
   stroke: var(--map-land);
 }
 
-/* The dots marking tiny countries would give their positions away */
-.is-blank .map-dot:not([data-state]) {
+/* The rings round small countries would give their positions away */
+.is-blank .map-spot:not([data-state]) {
   display: none;
 }
 
@@ -191,24 +224,92 @@
   --state-colour: var(--loose);
 }
 
-.map-country[data-state],
-.map-dot[data-state] {
+.map-country[data-state] {
   fill: var(--state-colour);
   stroke: var(--text);
   stroke-width: 1.1;
-  opacity: 1;
+}
+
+/* A coloured small country's ring is tinted in the same colour */
+.map-spot[data-state] {
+  fill: var(--state-colour);
+  fill-opacity: 0.45;
+  stroke: var(--state-colour);
+  stroke-width: 2;
 }
 
 /* A heavier outline, for the country the player is standing on */
 .map-country[data-state='current'],
-.map-dot[data-state='current'] {
+.map-spot[data-state='current'] {
   stroke-width: 2.6;
 }
 
 /* A country found only after a wrong guess: a paler red than a fresh mistake */
-.map-country[data-state='missed'],
-.map-dot[data-state='missed'] {
+.map-country[data-state='missed'] {
   fill: #e3a394;
+}
+
+/* ---- Hover: the country you're pointing at ------------------------------------
+ * map.js draws a copy of that country on top, slightly enlarged, with a heavy
+ * ink outline and a pale edge so it looks lifted off the page. The copy
+ * ignores the pointer, so taps still reach the real country underneath. */
+.map-hover {
+  pointer-events: none;
+}
+
+.map-hover > * {
+  animation: hover-in 0.12s ease-out;
+}
+
+@keyframes hover-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.map-hover-edge {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 7;
+  stroke-opacity: 0.9;
+}
+
+.map-hover-shape {
+  stroke: var(--text);
+  stroke-width: 2.4;
+}
+
+/* No highlight while the map is moving */
+.map-frame svg.is-moving .map-hover {
+  display: none;
+}
+
+/* ---- Hold to aim (touchscreens) -------------------------------------------------
+ * The target that appears above your finger. map.js moves it. */
+.map-aim {
+  position: absolute;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px; /* centre it on its position */
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  /* Pale rings inside and out, so it shows up on land and sea */
+  box-shadow: 0 0 0 2px var(--surface), inset 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+
+/* The dot in the middle */
+.map-aim::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: var(--text);
 }
 
 /* ---- Marks: the arrow and the ring ----------------------------------------------

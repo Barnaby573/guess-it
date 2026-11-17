@@ -225,6 +225,8 @@ function startRound(region) {
   el.gameScreen.hidden = false;
 
   map.reset();
+  // Grey out every country outside this region: they can't be the answer.
+  map.setPlayable(region.codes);
   // Whole world stays zoomed right out. A region zooms to fit its countries.
   if (region.key !== 'world') map.focusOn(region.codes, 900);
 
@@ -262,6 +264,7 @@ function renderCount(done) {
 // ===========================================================================
 
 function startFind() {
+  map.setHoverEnabled(true);
   state.queue = shuffled(state.codes);
   state.position = 0;
   state.missed = [];
@@ -313,6 +316,12 @@ function handlePick({ code, point }) {
   // No penalty: it's too easy to do by accident near small islands.
   if (!code) {
     setMessage("That isn't one of the countries. Try again.");
+    return;
+  }
+
+  // Tapped a greyed-out country. No penalty: just say so.
+  if (!state.region.codes.includes(code)) {
+    setMessage(`${nameOf(code)} isn't in this round.`);
     return;
   }
 
@@ -388,6 +397,7 @@ function handlePick({ code, point }) {
 // ===========================================================================
 
 function startType() {
+  map.setHoverEnabled(false); // you answer by typing, so taps do nothing
   state.found = new Set();
   el.typeInput.value = '';
   renderCount(0);

@@ -159,6 +159,8 @@ function startRound(region) {
   el.gameScreen.hidden = false;
 
   map.reset();
+  // Grey out every country outside this region: they can't be the answer.
+  map.setPlayable(region.codes);
   // Whole world stays zoomed right out. A region zooms to fit its countries.
   if (region.key !== 'world') map.focusOn(region.codes, 900);
 
@@ -237,6 +239,12 @@ function handlePick({ code, point }) {
   // No penalty: it's too easy to do by accident near small islands.
   if (!code) {
     setMessage("That isn't one of the countries. Try again.");
+    return;
+  }
+
+  // Tapped a greyed-out country. No penalty: just say so.
+  if (!state.region.codes.includes(code)) {
+    setMessage(`${nameOf(code)} isn't in this round.`);
     return;
   }
 

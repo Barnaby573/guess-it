@@ -14,17 +14,30 @@
 //   - Pan/zoom updates are bunched up and applied at most once per screen
 //     refresh (using requestAnimationFrame), however fast the mouse,
 //     trackpad or fingers send events.
-//   - Dots and marks are only resized when the zoom level changes, not on
-//     every pan.
+//   - Rings, the hover highlight and marks are only resized when the zoom
+//     level changes, not on every pan.
 //   - While the map is moving, countries ignore the mouse, so the browser
 //     doesn't have to work out hover effects mid-drag.
+//
+// HOW IT HELPS YOU TAP THE RIGHT COUNTRY (in games where you tap the map)
+//   - Hover: the country under the mouse lifts up with a heavy ink outline.
+//     Small countries grow more than big ones, so you can see them.
+//   - Rings: small countries get a ring round them when zoomed out. Anywhere
+//     inside the ring counts as that country. Zoom in and the ring goes,
+//     because the country itself is big enough to see.
+//   - Out of play: a game can grey out countries that can't be the answer.
+//   - Hold to aim (touchscreens): press and hold, and a target appears just
+//     above your finger. Slide it onto a country and let go to choose it.
+//   - Near misses: a tap on the sea just beside a country counts as that
+//     country.
 //
 // How this file is organised:
 //   1. Drawing     - building the layers of the map
 //   2. Camera      - working out and applying the view
-//   3. By hand     - zooming, dragging and tapping
-//   4. Marks       - the arrow and ring drawn on top of the map
-//   5. Controls    - the functions a game can call
+//   3. Hover       - highlighting the country under the mouse or target
+//   4. By hand     - zooming, dragging, tapping and holding to aim
+//   5. Marks       - the arrow and ring drawn on top of the map
+//   6. Controls    - the functions a game can call
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -51,7 +64,10 @@ function svgElement(name, attributes = {}) {
 // clicks the map without dragging it. It is given:
 //   { code, point }
 // code is the 2-letter code of the country tapped (or null for sea), and
-// point is where on the map they tapped, as [x, y].
+// point is where on the map they tapped, as [x, y]. A country that has
+// been greyed out with setPlayable can still be tapped; the game decides
+// what to say.
+// Hovering and holding to aim only happen on maps that have an onPick.
 export function createMap(svg, mapData, { onPick } = {}) {
   const wholeWorld = [0, 0, mapData.width, mapData.height];
 
@@ -104,8 +120,12 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // The map is built in layers, bottom first:
   //   1. shallow water round the coasts   2. latitude/longitude lines
   //   3. land that isn't in play          4. the 195 countries
-  //   5. dots for tiny countries          6. marks (arrow, ring)
+  //   5. rings for small countries        6. the hovered country
+  //   7. marks (arrow, ring)
   // (The sea itself is just the background colour of the map's frame.)
+
+  // Countries smaller than this (in map units) can get a ring.
+  const RING_COUNTRY_SIZE = 40;
 
   // 1. Shallow water. All the land in one shape, drawn twice with thick
   //    pale outlines. The land layers above cover the inner half, leaving
@@ -138,7 +158,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // 4. The countries. Each remembers its code in "data-code", which is how
   //    we know which country was tapped.
   const shapes = {}; // code -> the country's <path>
-  const dots = {}; // code -> a <circle>, only for tiny countries
+  const rings = {}; // code -> a <circle>, only for small countries
 
   for (const [code, shape] of Object.entries(mapData.countries)) {
     shapes[code] = svgElement('path', {
@@ -149,25 +169,39 @@ export function createMap(svg, mapData, { onPick } = {}) {
     world.append(shapes[code]);
   }
 
-  // 5. Tiny countries (Monaco, Andorra...) get a dot so they can be seen
-  //    and tapped. Dots are added after the shapes so they sit on top.
-  const dotLayer = svgElement('g');
+  // 5. Rings round small countries (Monaco, Malta, Jamaica, Luxembourg...)
+  //    so they can be seen and tapped when the map is zoomed out. Each one
+  //    is a circle the whole inside of which counts as that country.
+  //    They are added after the shapes so they sit on top. render() hides
+  //    them once you've zoomed in far enough to see the country itself.
+  const ringLayer = svgElement('g');
   for (const [code, shape] of Object.entries(mapData.countries)) {
-    if (!shape.tiny) continue;
     const [x, y, width, height] = shape.box;
-    dots[code] = svgElement('circle', {
-      class: 'map-dot',
+    if (Math.max(width, height) >= RING_COUNTRY_SIZE) continue;
+    rings[code] = svgElement('circle', {
+      class: 'map-spot',
       cx: x + width / 2,
       cy: y + height / 2,
       'data-code': code,
     });
-    dotLayer.append(dots[code]);
+    ringLayer.append(rings[code]);
   }
-  world.append(dotLayer);
+  world.append(ringLayer);
 
-  // 6. Marks drawn over everything else. Filled in by drawMarks() below.
+  // 6. The lifted copy of the hovered country (see section 3, Hover).
+  const hoverLayer = svgElement('g', { class: 'map-hover' });
+  world.append(hoverLayer);
+
+  // 7. Marks drawn over everything else. Filled in by drawMarks() below.
   const markLayer = svgElement('g', { class: 'map-marks' });
   world.append(markLayer);
+
+  // The target shown above your finger while holding to aim. It's an
+  // ordinary HTML element laid over the map, not part of the SVG.
+  const aimTarget = document.createElement('div');
+  aimTarget.className = 'map-aim';
+  aimTarget.hidden = true;
+  svg.parentElement.append(aimTarget);
 
   // ===========================================================================
   // 2. CAMERA
@@ -181,8 +215,12 @@ export function createMap(svg, mapData, { onPick } = {}) {
     return Number.isFinite(units) && units > 0 ? units : view[2] / 700;
   }
 
-  // The zoom level the dots and marks were last sized for.
+  // The zoom level the rings and marks were last sized for.
   let sizedForZoom = null;
+
+  // How rings behave, in screen pixels:
+  const RING_RADIUS = 11; // the size of a ring
+  const RING_UNTIL = 16; // a ring shows while its country is smaller than this
   // True while a render is waiting for the next screen refresh.
   let renderQueued = false;
 
@@ -202,12 +240,19 @@ export function createMap(svg, mapData, { onPick } = {}) {
     const moveY = (height - view[3] * zoom) / 2 - view[1] * zoom;
     world.setAttribute('transform', `translate(${moveX} ${moveY}) scale(${zoom})`);
 
-    // Dots and marks are sized in screen pixels, so they only need
-    // updating when the zoom changes. A pan leaves them alone.
+    // Rings, the hover highlight and marks are sized in screen pixels, so
+    // they only need updating when the zoom changes. A pan leaves them alone.
     if (zoom !== sizedForZoom) {
       sizedForZoom = zoom;
-      const radius = 6 / zoom; // 6 screen pixels, in map units
-      for (const dot of Object.values(dots)) dot.setAttribute('r', radius);
+      const radius = RING_RADIUS / zoom; // in map units
+      for (const [code, ring] of Object.entries(rings)) {
+        const [, , w, h] = mapData.countries[code].box;
+        // How big the country looks on screen right now, in pixels.
+        const onScreen = Math.max(w, h) * zoom;
+        ring.classList.toggle('is-hidden', onScreen >= RING_UNTIL);
+        ring.setAttribute('r', radius);
+      }
+      drawHover();
       drawMarks();
     }
   }
@@ -315,7 +360,64 @@ export function createMap(svg, mapData, { onPick } = {}) {
   }
 
   // ===========================================================================
-  // 3. BY HAND: zooming, dragging and tapping
+  // 3. HOVER: highlighting the country you're pointing at
+  // ===========================================================================
+
+  // The countries that can be the answer in this round. null = all of them.
+  // The rest are greyed out (see setPlayable).
+  let playable = null;
+
+  // Can this country be chosen? (false for the sea and greyed-out land)
+  function canPick(code) {
+    return Boolean(code) && (!playable || playable.has(code));
+  }
+
+  // Hover only happens on maps the player taps (games that gave an onPick).
+  // A game can also switch it off, e.g. when the player is typing instead.
+  let hoverEnabled = Boolean(onPick);
+  let hoverCode = null; // the country currently highlighted
+
+  // Highlights a country (or nothing, for null).
+  function setHover(code) {
+    if (code === hoverCode) return;
+    if (hoverCode && rings[hoverCode]) rings[hoverCode].classList.remove('is-hovered');
+    hoverCode = code;
+    if (hoverCode && rings[hoverCode]) rings[hoverCode].classList.add('is-hovered');
+    drawHover();
+  }
+
+  // Draws the highlighted country as a copy on top of the map, slightly
+  // bigger, with a heavy ink outline. The real country is left untouched.
+  function drawHover() {
+    hoverLayer.replaceChildren();
+    if (!hoverCode || !sizedForZoom) return;
+
+    const shape = mapData.countries[hoverCode];
+    const [x, y, width, height] = shape.box;
+    const centreX = x + width / 2;
+    const centreY = y + height / 2;
+
+    // How much to grow it. Small countries grow a lot (up to 3 times) so
+    // they become easy to see; big ones barely change.
+    // onScreen = the country's size on screen right now, in pixels.
+    const onScreen = Math.max(width, height) * sizedForZoom;
+    const grow = onScreen < 120 ? Math.min(3, Math.max(1.08, 40 / onScreen)) : 1.02;
+    // Scale around the country's centre, so it grows in place.
+    const transform =
+      `translate(${centreX} ${centreY}) scale(${grow}) translate(${-centreX} ${-centreY})`;
+
+    // Keep the country's current colour (e.g. red if already guessed).
+    const fill = getComputedStyle(shapes[hoverCode]).fill;
+
+    hoverLayer.append(
+      // A wide pale outline underneath makes it look lifted off the page.
+      svgElement('path', { class: 'map-hover-edge', d: shape.d, transform }),
+      svgElement('path', { class: 'map-hover-shape', d: shape.d, transform, style: `fill: ${fill}` })
+    );
+  }
+
+  // ===========================================================================
+  // 4. BY HAND: zooming, dragging, tapping and holding to aim
   // ===========================================================================
   //
   // Mouse:  scroll wheel zooms, click-and-drag moves the map.
@@ -379,6 +481,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     userMoved = true;
     moveNumber += 1; // stop any camera glide that is still running
     markMoving();
+    setHover(null); // the map is moving; the mouse is no longer "on" a country
   }
 
   svg.addEventListener(
@@ -400,18 +503,109 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // Facts about the press in progress, used to tell a tap from a drag.
   let press = { travelled: 0, wasPinch: false };
 
+  // HOLD TO AIM (touchscreens). Hold a finger still for AIM_DELAY and a
+  // target appears AIM_OFFSET pixels above it, where your finger isn't
+  // covering the map. Slide to move the target; let go to choose.
+  const AIM_DELAY = 350; // milliseconds
+  const AIM_OFFSET = 70; // pixels
+  let aimTimer = null;
+  let aiming = false;
+
+  // Which country (if any) is drawn at a spot on the screen?
+  function codeAt(screenX, screenY) {
+    const element = document.elementFromPoint(screenX, screenY);
+    return element?.closest?.('[data-code]')?.dataset.code ?? null;
+  }
+
+  // The country to choose for a tap at this spot. If the spot is a country
+  // (even a greyed-out one) that's the answer. If it's sea, look a little
+  // way around it: a tap just beside a small island counts as that island.
+  function pickAt(screenX, screenY) {
+    const direct = codeAt(screenX, screenY);
+    if (direct) return direct;
+    for (const distance of [6, 10, 14]) {
+      for (let step = 0; step < 12; step++) {
+        const angle = (step / 12) * 2 * Math.PI;
+        const code = codeAt(
+          screenX + Math.cos(angle) * distance,
+          screenY + Math.sin(angle) * distance
+        );
+        if (canPick(code)) return code;
+      }
+    }
+    return null;
+  }
+
+  // Tells the game what was picked at a spot on the screen.
+  function pick(screenX, screenY) {
+    // Countries ignore the pointer while the map is moving (see
+    // markMoving). A tap means it has stopped, so switch them back on
+    // before asking what was tapped.
+    clearTimeout(stillTimer);
+    svg.classList.remove('is-moving');
+    onPick({ code: pickAt(screenX, screenY), point: screenToMap(screenX, screenY) });
+  }
+
+  // Moves the aiming target to sit above a finger at (x, y) and highlights
+  // the country under it.
+  function aimAt(x, y) {
+    const box = svg.getBoundingClientRect();
+    aimTarget.style.left = `${x - box.left}px`;
+    aimTarget.style.top = `${y - AIM_OFFSET - box.top}px`;
+    const code = pickAt(x, y - AIM_OFFSET);
+    setHover(canPick(code) ? code : null);
+  }
+
+  function stopAiming() {
+    clearTimeout(aimTimer);
+    aimTimer = null;
+    aiming = false;
+    aimTarget.hidden = true;
+  }
+
   svg.addEventListener('pointerdown', (event) => {
     if (pointers.size === 0) press = { travelled: 0, wasPinch: false };
     else press.wasPinch = true; // a second finger has joined
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     // "Capture" keeps the drag going even if the pointer leaves the map.
     svg.setPointerCapture(event.pointerId);
+
+    // A single finger on a map you tap: start the hold-to-aim countdown.
+    stopAiming();
+    if (onPick && hoverEnabled && event.pointerType === 'touch' && pointers.size === 1) {
+      aimTimer = setTimeout(() => {
+        // Still one finger, and it hasn't moved: start aiming.
+        if (pointers.size !== 1 || press.travelled >= TAP_WOBBLE) return;
+        const finger = [...pointers.values()][0];
+        aiming = true;
+        aimTarget.hidden = false;
+        aimAt(finger.x, finger.y);
+      }, AIM_DELAY);
+    }
   });
 
   svg.addEventListener('pointermove', (event) => {
     const before = pointers.get(event.pointerId);
-    if (!before) return; // moving without pressing: nothing to do
+
+    // No button or finger down: this is just the mouse moving over the map.
+    // Highlight the country under it.
+    if (!before) {
+      if (hoverEnabled && event.pointerType !== 'touch') {
+        const code = codeAt(event.clientX, event.clientY);
+        setHover(canPick(code) ? code : null);
+      }
+      return;
+    }
+
     const now = { x: event.clientX, y: event.clientY };
+    pointers.set(event.pointerId, now);
+
+    // Aiming: move the target, don't move the map.
+    if (aiming) {
+      aimAt(now.x, now.y);
+      return;
+    }
+
     press.travelled += Math.hypot(now.x - before.x, now.y - before.y);
 
     if (pointers.size === 1) {
@@ -419,6 +613,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
       // tap doesn't nudge the map.
       if (press.travelled >= TAP_WOBBLE) {
         const units = unitsPerPixel();
+        stopAiming(); // it's a drag, not a hold
         takeOver();
         svg.classList.add('is-dragging');
         showView([
@@ -431,6 +626,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     } else if (pointers.size === 2) {
       // TWO fingers: compare how far apart they were with how far apart
       // they are now. Fingers spreading = zoom in, pinching = zoom out.
+      stopAiming();
       const other = [...pointers.entries()].find(([id]) => id !== event.pointerId)[1];
       const gapBefore = Math.hypot(before.x - other.x, before.y - other.y);
       const gapNow = Math.hypot(now.x - other.x, now.y - other.y);
@@ -442,7 +638,6 @@ export function createMap(svg, mapData, { onPick } = {}) {
         );
       }
     }
-    pointers.set(event.pointerId, now);
   });
 
   svg.addEventListener('pointerup', (event) => {
@@ -451,33 +646,41 @@ export function createMap(svg, mapData, { onPick } = {}) {
       pointers.size === 1 &&
       !press.wasPinch &&
       press.travelled < TAP_WOBBLE;
+    const wasAiming = aiming;
 
     pointers.delete(event.pointerId);
     if (pointers.size === 0) svg.classList.remove('is-dragging');
+    stopAiming();
 
-    if (wasTap && onPick) {
-      // Countries ignore the pointer while the map is moving (see
-      // markMoving). A tap means it has stopped, so switch them back on
-      // before asking what was tapped.
-      clearTimeout(stillTimer);
-      svg.classList.remove('is-moving');
-      // Ask the browser what is drawn at that exact spot. If it's a
-      // country (or a tiny country's dot) it will have a data-code.
-      const element = document.elementFromPoint(event.clientX, event.clientY);
-      onPick({
-        code: element?.dataset?.code ?? null,
-        point: screenToMap(event.clientX, event.clientY),
-      });
+    if (!onPick) return;
+    if (wasAiming) {
+      // Choose whatever is under the target, not under the finger.
+      setHover(null);
+      pick(event.clientX, event.clientY - AIM_OFFSET);
+    } else if (wasTap) {
+      pick(event.clientX, event.clientY);
     }
   });
 
   svg.addEventListener('pointercancel', (event) => {
     pointers.delete(event.pointerId);
     if (pointers.size === 0) svg.classList.remove('is-dragging');
+    stopAiming();
+    setHover(null);
+  });
+
+  // The mouse has left the map: nothing is highlighted any more.
+  svg.addEventListener('pointerleave', (event) => {
+    if (event.pointerType !== 'touch') setHover(null);
+  });
+
+  // Stops a long press on a phone opening the "save image" menu.
+  svg.addEventListener('contextmenu', (event) => {
+    if (onPick) event.preventDefault();
   });
 
   // ===========================================================================
-  // 4. MARKS: the arrow and the ring
+  // 5. MARKS: the arrow and the ring
   // ===========================================================================
 
   // What is currently drawn on top of the map (null = nothing).
@@ -535,7 +738,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
   }
 
   // ===========================================================================
-  // 5. CONTROLS: what a game can ask the map to do
+  // 6. CONTROLS: what a game can ask the map to do
   // ===========================================================================
   return {
     project,
@@ -546,6 +749,8 @@ export function createMap(svg, mapData, { onPick } = {}) {
     reset(blank = false) {
       svg.classList.toggle('is-blank', blank);
       for (const code of Object.keys(shapes)) this.setState(code, null);
+      this.setPlayable(null);
+      setHover(null);
       arrow = null;
       ringCode = null;
       drawMarks();
@@ -558,14 +763,37 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // 'wrong' or 'right' (the full list and their colours are in map.css),
     // or null to clear it.
     setState(code, state) {
-      for (const element of [shapes[code], dots[code]]) {
+      for (const element of [shapes[code], rings[code]]) {
         if (!element) continue;
         if (state) element.dataset.state = state;
         else delete element.dataset.state;
       }
       // Move a coloured country to the front so its outline isn't covered
       // by its neighbours.
-      if (state) world.insertBefore(shapes[code], dotLayer);
+      if (state) world.insertBefore(shapes[code], ringLayer);
+      // If it's the highlighted country, redraw the highlight in its new colour.
+      if (code === hoverCode) drawHover();
+    },
+
+    // Greys out every country NOT in the list, to show it can't be the
+    // answer this round. Greyed-out countries don't light up on hover and
+    // lose their rings, but can still be tapped (the game decides what to
+    // say). Pass null to make every country playable again.
+    setPlayable(codes) {
+      playable = codes ? new Set(codes) : null;
+      for (const [code, shape] of Object.entries(shapes)) {
+        const out = !canPick(code);
+        shape.classList.toggle('is-out', out);
+        rings[code]?.classList.toggle('is-out', out);
+      }
+      if (hoverCode && !canPick(hoverCode)) setHover(null);
+    },
+
+    // Turns the hover highlight and hold-to-aim on or off (for example, off
+    // while the player is typing answers instead of tapping).
+    setHoverEnabled(enabled) {
+      hoverEnabled = enabled && Boolean(onPick);
+      if (!hoverEnabled) setHover(null);
     },
 
     // Moves the camera so all the given countries are on screen. This also
