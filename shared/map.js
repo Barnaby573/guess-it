@@ -6,7 +6,7 @@
 // The map is an SVG: a picture made of shapes described in text, which
 // stays sharp at any zoom level.
 //
-// HOW IT STAYS FAST
+// HOW IT STAYS FAST (measured on a Surface Go)
 // Every shape is drawn ONCE, when the map is created, inside a single group
 // (<g>) called "world". Panning and zooming never touch the shapes: they
 // only change the world group's "transform" (how far it is moved and how
@@ -117,30 +117,27 @@ export function createMap(svg, mapData, { onPick } = {}) {
   const world = svgElement('g', { class: 'map-world' });
   svg.append(world);
 
-  // The map is built in layers, bottom first:
-  //   1. shallow water round the coasts   2. latitude/longitude lines
-  //   3. land that isn't in play          4. the 195 countries
-  //   5. rings for small countries        6. the hovered country
-  //   7. marks (arrow, ring)
-  // (The sea itself is just the background colour of the map's frame.)
+  // WRAPPING ROUND LIKE A GLOBE
+  // The whole map is drawn three times, side by side: the real one in the
+  // middle and a copy either side. Head east past Australia and the copy on
+  // the right brings the Americas into view. The browser skips drawing
+  // anything off screen, so the copies cost little until they're needed.
+  // Anything that changes on the map (colours, rings, the hover highlight,
+  // the arrow) is changed on all three. Taps are worked out from the real
+  // map only (see codeAt).
+  const WORLD_WIDTH = mapData.width;
 
   // Countries smaller than this (in map units) can get a ring.
   const RING_COUNTRY_SIZE = 40;
 
-  // 1. Shallow water. All the land in one shape, drawn twice with thick
-  //    pale outlines. The land layers above cover the inner half, leaving
-  //    a soft pale band around every coast. See .map-halo in map.css.
+  // Shapes shared by every copy, worked out once.
+  // All the land in one shape, for the shallow-water band (layer 1 below).
   const allLand =
     mapData.background +
     Object.values(mapData.countries)
       .map((shape) => shape.d)
       .join('');
-  world.append(
-    svgElement('path', { class: 'map-halo map-halo-wide', d: allLand }),
-    svgElement('path', { class: 'map-halo map-halo-narrow', d: allLand })
-  );
-
-  // 2. Latitude and longitude lines, every 15 degrees.
+  // Latitude and longitude lines, every 15 degrees (layer 2 below).
   let gridLines = '';
   for (let longitude = -180; longitude <= 180; longitude += 15) {
     const [x] = project(longitude, 0);
@@ -150,51 +147,93 @@ export function createMap(svg, mapData, { onPick } = {}) {
     const [, y] = project(0, latitude);
     gridLines += `M0 ${y}H${mapData.width}`; // a horizontal line
   }
-  world.append(svgElement('path', { class: 'map-grid', d: gridLines }));
 
-  // 3. Land that isn't one of our 195 countries (Greenland, for example).
-  world.append(svgElement('path', { class: 'map-background', d: mapData.background }));
+  // Draws one complete copy of the map, moved sideways by "shift" map
+  // units, and returns its parts so they can be changed later.
+  //
+  // Each copy is built in layers, bottom first:
+  //   1. shallow water round the coasts   2. latitude/longitude lines
+  //   3. land that isn't in play          4. the 195 countries
+  //   5. rings for small countries        6. the hovered country
+  //   7. marks (arrow, ring)
+  // (The sea itself is just the background colour of the map's frame.)
+  function drawCopy(shift) {
+    const group = svgElement('g', { transform: `translate(${shift} 0)` });
 
-  // 4. The countries. Each remembers its code in "data-code", which is how
-  //    we know which country was tapped.
-  const shapes = {}; // code -> the country's <path>
-  const rings = {}; // code -> a <circle>, only for small countries
+    // 1. Shallow water. All the land drawn twice with thick pale outlines.
+    //    The land layers above cover the inner half, leaving a soft pale
+    //    band around every coast. See .map-halo in map.css.
+    group.append(
+      svgElement('path', { class: 'map-halo map-halo-wide', d: allLand }),
+      svgElement('path', { class: 'map-halo map-halo-narrow', d: allLand })
+    );
 
-  for (const [code, shape] of Object.entries(mapData.countries)) {
-    shapes[code] = svgElement('path', {
-      class: 'map-country',
-      d: shape.d,
-      'data-code': code,
-    });
-    world.append(shapes[code]);
+    // 2. Latitude and longitude lines.
+    group.append(svgElement('path', { class: 'map-grid', d: gridLines }));
+
+    // 3. Land that isn't one of our 195 countries (Greenland, for example).
+    group.append(svgElement('path', { class: 'map-background', d: mapData.background }));
+
+    // 4. The countries. Each remembers its code in "data-code".
+    const shapes = {}; // code -> the country's <path>
+    for (const [code, shape] of Object.entries(mapData.countries)) {
+      shapes[code] = svgElement('path', { class: 'map-country', d: shape.d, 'data-code': code });
+      group.append(shapes[code]);
+    }
+
+    // 5. Rings round small countries (Monaco, Malta, Jamaica, Luxembourg...)
+    //    so they can be seen and tapped when the map is zoomed out. The
+    //    whole inside of a ring counts as that country. render() hides them
+    //    once you've zoomed in far enough to see the country itself.
+    const rings = {}; // code -> a <circle>, only for small countries
+    const ringLayer = svgElement('g');
+    for (const [code, shape] of Object.entries(mapData.countries)) {
+      const [x, y, width, height] = shape.box;
+      if (Math.max(width, height) >= RING_COUNTRY_SIZE) continue;
+      rings[code] = svgElement('circle', {
+        class: 'map-spot',
+        cx: x + width / 2,
+        cy: y + height / 2,
+        'data-code': code,
+      });
+      ringLayer.append(rings[code]);
+    }
+    group.append(ringLayer);
+
+    // 6. The lifted copy of the hovered country (see section 3, Hover).
+    const hoverLayer = svgElement('g', { class: 'map-hover' });
+    group.append(hoverLayer);
+
+    // 7. Marks drawn over everything else. Filled in by drawMarks() below.
+    const markLayer = svgElement('g', { class: 'map-marks' });
+    group.append(markLayer);
+
+    world.append(group);
+    return { group, shapes, rings, ringLayer, hoverLayer, markLayer };
   }
 
-  // 5. Rings round small countries (Monaco, Malta, Jamaica, Luxembourg...)
-  //    so they can be seen and tapped when the map is zoomed out. Each one
-  //    is a circle the whole inside of which counts as that country.
-  //    They are added after the shapes so they sit on top. render() hides
-  //    them once you've zoomed in far enough to see the country itself.
-  const ringLayer = svgElement('g');
-  for (const [code, shape] of Object.entries(mapData.countries)) {
-    const [x, y, width, height] = shape.box;
-    if (Math.max(width, height) >= RING_COUNTRY_SIZE) continue;
-    rings[code] = svgElement('circle', {
-      class: 'map-spot',
-      cx: x + width / 2,
-      cy: y + height / 2,
-      'data-code': code,
-    });
-    ringLayer.append(rings[code]);
+  // The copy to the left, the real map, and the copy to the right.
+  const copies = [drawCopy(-WORLD_WIDTH), drawCopy(0), drawCopy(WORLD_WIDTH)];
+
+  // Short names for the real map's parts.
+  const { group: content, shapes, rings } = copies[1];
+
+  // Shows or hides a side copy (only touching the page if it changes).
+  function showCopy(copy, visible) {
+    if (copy.visible === visible) return;
+    copy.visible = visible;
+    copy.group.style.display = visible ? '' : 'none';
   }
-  world.append(ringLayer);
 
-  // 6. The lifted copy of the hovered country (see section 3, Hover).
-  const hoverLayer = svgElement('g', { class: 'map-hover' });
-  world.append(hoverLayer);
-
-  // 7. Marks drawn over everything else. Filled in by drawMarks() below.
-  const markLayer = svgElement('g', { class: 'map-marks' });
-  world.append(markLayer);
+  // Fills one layer (hoverLayer or markLayer) of every copy with the same
+  // elements: the real map gets the originals, the copies get duplicates.
+  function fillLayerEverywhere(layerName, elements) {
+    for (const copy of copies) {
+      copy[layerName].replaceChildren(
+        ...(copy === copies[1] ? elements : elements.map((e) => e.cloneNode(true)))
+      );
+    }
+  }
 
   // The target shown above your finger while holding to aim. It's an
   // ordinary HTML element laid over the map, not part of the SVG.
@@ -207,9 +246,13 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // 2. CAMERA
   // ===========================================================================
 
+  // The frame the map sits in (the <div class="map-frame">). "The screen"
+  // is measured from this.
+  const frameEl = svg.parentElement;
+
   // How many map units one screen pixel covers for the current view.
   function unitsPerPixel() {
-    const units = Math.max(view[2] / svg.clientWidth, view[3] / svg.clientHeight);
+    const units = Math.max(view[2] / frameEl.clientWidth, view[3] / frameEl.clientHeight);
     // A hidden map has no size, which would give a nonsense answer.
     // Fall back to a sensible guess (as if the map were 700 pixels wide).
     return Number.isFinite(units) && units > 0 ? units : view[2] / 700;
@@ -228,8 +271,8 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // thing that runs on every frame of a pan or zoom.
   function render() {
     renderQueued = false;
-    const width = svg.clientWidth;
-    const height = svg.clientHeight;
+    const width = frameEl.clientWidth;
+    const height = frameEl.clientHeight;
     // A hidden map has no size. Skip; the resize watcher below calls
     // render again as soon as the map appears.
     if (!width || !height) return;
@@ -240,21 +283,55 @@ export function createMap(svg, mapData, { onPick } = {}) {
     const moveY = (height - view[3] * zoom) / 2 - view[1] * zoom;
     world.setAttribute('transform', `translate(${moveX} ${moveY}) scale(${zoom})`);
 
+    // Switch each side copy off completely unless part of it is on screen.
+    // Most of the time neither is, so the browser only deals with the real
+    // map. (leftEdge and rightEdge: the map positions at the screen edges.)
+    const leftEdge = -moveX / zoom;
+    const rightEdge = (width - moveX) / zoom;
+    showCopy(copies[0], leftEdge < 0);
+    showCopy(copies[2], rightEdge > WORLD_WIDTH);
+
     // Rings, the hover highlight and marks are sized in screen pixels, so
     // they only need updating when the zoom changes. A pan leaves them alone.
     if (zoom !== sizedForZoom) {
       sizedForZoom = zoom;
+      // One screen pixel, in map units. map.css works out every line width
+      // from this, so lines stay the same thickness at any zoom.
+      world.style.setProperty('--px', 1 / zoom);
       const radius = RING_RADIUS / zoom; // in map units
-      for (const [code, ring] of Object.entries(rings)) {
-        const [, , w, h] = mapData.countries[code].box;
-        // How big the country looks on screen right now, in pixels.
-        const onScreen = Math.max(w, h) * zoom;
-        ring.classList.toggle('is-hidden', onScreen >= RING_UNTIL);
-        ring.setAttribute('r', radius);
+      for (const copy of copies) {
+        for (const [code, ring] of Object.entries(copy.rings)) {
+          const [, , w, h] = mapData.countries[code].box;
+          // How big the country looks on screen right now, in pixels.
+          const onScreen = Math.max(w, h) * zoom;
+          ring.classList.toggle('is-hidden', onScreen >= RING_UNTIL);
+          ring.setAttribute('r', radius);
+        }
       }
       drawHover();
       drawMarks();
     }
+  }
+
+  // Never show more than one world's width across the screen. Zoomed out
+  // further than that, the copies either side would add a second Americas
+  // and a second Asia at the edges: confusing, and twice the drawing work.
+  // (On a wide frame, the whole-world view trims a little off the top and
+  // bottom instead; drag up or down to see it.)
+  function limitToOneWorld([x, y, width, height]) {
+    const shape = frameEl.clientWidth / frameEl.clientHeight;
+    if (!Number.isFinite(shape) || shape <= 0) return [x, y, width, height];
+    // How wide the view will actually look, once fitted to the frame.
+    const shownWidth = Math.max(width, height * shape);
+    if (shownWidth <= WORLD_WIDTH) return [x, y, width, height];
+    const shrink = WORLD_WIDTH / shownWidth;
+    // Shrink around the middle, so the same place stays centred.
+    return [
+      x + (width * (1 - shrink)) / 2,
+      y + (height * (1 - shrink)) / 2,
+      width * shrink,
+      height * shrink,
+    ];
   }
 
   // Changes the view. By default the actual move waits for the next screen
@@ -262,7 +339,14 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // now = true redraws straight away (used when we're already inside a
   // screen refresh, or when nothing should be in between).
   function showView(newView, now = false) {
-    view = newView;
+    newView = limitToOneWorld(newView);
+    // Keep the middle of the view over the main map, not a copy. If it has
+    // drifted off one side (say, panning east past New Zealand), jump back
+    // exactly one world-width. The copies look identical, so the jump
+    // can't be seen.
+    const middle = newView[0] + newView[2] / 2;
+    const shift = Math.floor(middle / WORLD_WIDTH) * WORLD_WIDTH;
+    view = shift === 0 ? newView : [newView[0] - shift, newView[1], newView[2], newView[3]];
     if (now) {
       render();
     } else if (!renderQueued) {
@@ -271,18 +355,41 @@ export function createMap(svg, mapData, { onPick } = {}) {
     }
   }
 
-  // If the map changes size (window resized, phone rotated, map shown),
+  // If the frame changes size (window resized, phone rotated, map shown),
   // redraw so the view still fits.
-  new ResizeObserver(() => showView(view)).observe(svg);
+  new ResizeObserver(() => showView(view)).observe(frameEl);
 
   // The smallest box containing all the given countries' mainlands.
+  //
+  // Because the world wraps round, the box may cross the join in the
+  // Pacific. Fiji is at the far right of the flat map and Samoa at the far
+  // left, but they're neighbours on the globe. So: line up the middles of
+  // the countries from west to east, find the widest empty stretch between
+  // two of them (going round the back counts too), and start the box just
+  // after it. Countries before that point are moved one world-width east.
   function boxAround(codes) {
+    const middleOf = (code) => {
+      const [x, , width] = mapData.countries[code].box;
+      return x + width / 2;
+    };
+    const middles = codes.map(middleOf).sort((a, b) => a - b);
+    let start = middles[0];
+    let widestGap = middles[0] + WORLD_WIDTH - middles[middles.length - 1]; // round the back
+    for (let i = 1; i < middles.length; i++) {
+      const gap = middles[i] - middles[i - 1];
+      if (gap > widestGap) {
+        widestGap = gap;
+        start = middles[i];
+      }
+    }
+
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
     for (const code of codes) {
       const [x, y, width, height] = mapData.countries[code].box;
-      left = Math.min(left, x);
+      const shift = middleOf(code) < start ? WORLD_WIDTH : 0;
+      left = Math.min(left, x + shift);
       top = Math.min(top, y);
-      right = Math.max(right, x + width);
+      right = Math.max(right, x + shift + width);
       bottom = Math.max(bottom, y + height);
     }
     return [left, top, right - left, bottom - top];
@@ -297,7 +404,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
     width += padding * 2;
     height += padding * 2;
 
-    const screenShape = svg.clientWidth / svg.clientHeight || 1.6;
+    const screenShape = frameEl.clientWidth / frameEl.clientHeight || 1.6;
     if (width / height < screenShape) {
       const wider = height * screenShape;
       x -= (wider - width) / 2;
@@ -314,6 +421,12 @@ export function createMap(svg, mapData, { onPick } = {}) {
   function glideTo(target, milliseconds) {
     moveNumber += 1;
     const thisMove = moveNumber;
+
+    // Go the short way round: of the target and its copies either side,
+    // aim for whichever is nearest to where we are now.
+    const distance = view[0] + view[2] / 2 - (target[0] + target[2] / 2);
+    const shift = Math.round(distance / WORLD_WIDTH) * WORLD_WIDTH;
+    target = [target[0] + shift, target[1], target[2], target[3]];
 
     if (reducedMotion || milliseconds === 0) {
       showView(target, true);
@@ -349,14 +462,30 @@ export function createMap(svg, mapData, { onPick } = {}) {
   }
 
   // Is a country's mainland completely inside what's on screen right now?
+  // (Checks the copies either side too, since the world wraps round.)
   function isOnScreen(code) {
     const [x, y, width, height] = mapData.countries[code].box;
-    return (
-      x >= view[0] &&
-      y >= view[1] &&
-      x + width <= view[0] + view[2] &&
-      y + height <= view[1] + view[3]
+    return [-WORLD_WIDTH, 0, WORLD_WIDTH].some(
+      (shift) =>
+        x + shift >= view[0] &&
+        y >= view[1] &&
+        x + shift + width <= view[0] + view[2] &&
+        y + height <= view[1] + view[3]
     );
+  }
+
+  // Wraps a left-to-right position back onto the main map (0 up to the
+  // map's width). A tap on the copy to the right of Australia, say, gives
+  // the same answer as a tap on the real Americas.
+  function wrapX(x) {
+    return ((x % WORLD_WIDTH) + WORLD_WIDTH) % WORLD_WIDTH;
+  }
+
+  // Of a point and its copies either side, the one nearest another point.
+  // Used to make arrows and directions take the short way round.
+  function nearestCopy(point, near) {
+    const shift = Math.round((near[0] - point[0]) / WORLD_WIDTH) * WORLD_WIDTH;
+    return [point[0] + shift, point[1]];
   }
 
   // ===========================================================================
@@ -380,17 +509,19 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // Highlights a country (or nothing, for null).
   function setHover(code) {
     if (code === hoverCode) return;
-    if (hoverCode && rings[hoverCode]) rings[hoverCode].classList.remove('is-hovered');
+    for (const copy of copies) copy.rings[hoverCode]?.classList.remove('is-hovered');
     hoverCode = code;
-    if (hoverCode && rings[hoverCode]) rings[hoverCode].classList.add('is-hovered');
+    for (const copy of copies) copy.rings[hoverCode]?.classList.add('is-hovered');
     drawHover();
   }
 
   // Draws the highlighted country as a copy on top of the map, slightly
   // bigger, with a heavy ink outline. The real country is left untouched.
   function drawHover() {
-    hoverLayer.replaceChildren();
-    if (!hoverCode || !sizedForZoom) return;
+    if (!hoverCode || !sizedForZoom) {
+      fillLayerEverywhere('hoverLayer', []);
+      return;
+    }
 
     const shape = mapData.countries[hoverCode];
     const [x, y, width, height] = shape.box;
@@ -409,11 +540,11 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // Keep the country's current colour (e.g. red if already guessed).
     const fill = getComputedStyle(shapes[hoverCode]).fill;
 
-    hoverLayer.append(
+    fillLayerEverywhere('hoverLayer', [
       // A wide pale outline underneath makes it look lifted off the page.
       svgElement('path', { class: 'map-hover-edge', d: shape.d, transform }),
-      svgElement('path', { class: 'map-hover-shape', d: shape.d, transform, style: `fill: ${fill}` })
-    );
+      svgElement('path', { class: 'map-hover-shape', d: shape.d, transform, style: `fill: ${fill}` }),
+    ]);
   }
 
   // ===========================================================================
@@ -452,7 +583,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
 
   // Converts a position on the screen into a position on the map.
   function screenToMap(screenX, screenY) {
-    const box = svg.getBoundingClientRect();
+    const box = frameEl.getBoundingClientRect();
     const units = unitsPerPixel();
     // The view is centred in the map's box, so measure from the centre.
     return [
@@ -511,10 +642,69 @@ export function createMap(svg, mapData, { onPick } = {}) {
   let aimTimer = null;
   let aiming = false;
 
+  // The latest mouse position waiting to be checked for hovering, and
+  // whether a check is already booked for the next screen refresh.
+  let hoverSpot = null;
+  let hoverQueued = false;
+
+  // Each country's outer box, measured by the browser the first time it's
+  // needed. Used to rule out most countries quickly in codeAt.
+  const shapeBoxes = {};
+  function shapeBox(code) {
+    if (!shapeBoxes[code]) {
+      const box = shapes[code].getBBox();
+      // A hidden map measures as zero; don't remember that.
+      if (box.width === 0 && box.height === 0) return box;
+      shapeBoxes[code] = box;
+    }
+    return shapeBoxes[code];
+  }
+
   // Which country (if any) is drawn at a spot on the screen?
+  //
+  // This is worked out from the map itself, not by asking the browser what
+  // is under the pointer: the copies either side (for wrapping round) are
+  // just pictures, and the browser can't tell which country is in them.
+  // So the spot is turned into a map position, wrapped back onto the main
+  // map, and then:
+  //   1. Rings are checked first, because they sit on top. If the spot is
+  //      inside more than one ring, the nearest wins.
+  //   2. Then the countries, starting with the ones drawn on top.
   function codeAt(screenX, screenY) {
-    const element = document.elementFromPoint(screenX, screenY);
-    return element?.closest?.('[data-code]')?.dataset.code ?? null;
+    const [mapX, y] = screenToMap(screenX, screenY);
+    const x = wrapX(mapX);
+    const pixel = unitsPerPixel();
+
+    // 1. Rings (hidden ones don't count, and on a blank map only coloured
+    //    ones are shown).
+    const blank = svg.classList.contains('is-blank');
+    let nearestRing = null;
+    let nearestDistance = RING_RADIUS * pixel;
+    for (const [code, ring] of Object.entries(rings)) {
+      if (ring.classList.contains('is-hidden') || ring.classList.contains('is-out')) continue;
+      if (blank && !ring.dataset.state) continue;
+      const [bx, by, bw, bh] = mapData.countries[code].box;
+      let dx = Math.abs(x - (bx + bw / 2));
+      dx = Math.min(dx, WORLD_WIDTH - dx); // the short way round
+      const distance = Math.hypot(dx, y - (by + bh / 2));
+      if (distance <= nearestDistance) {
+        nearestDistance = distance;
+        nearestRing = code;
+      }
+    }
+    if (nearestRing) return nearestRing;
+
+    // 2. Countries, top-most first. Each country's outer box rules most of
+    //    them out instantly; isPointInFill then checks the real shape.
+    const spot = new DOMPoint(x, y);
+    const countries = content.querySelectorAll('.map-country');
+    for (let i = countries.length - 1; i >= 0; i--) {
+      const code = countries[i].dataset.code;
+      const box = shapeBox(code);
+      if (x < box.x || x > box.x + box.width || y < box.y || y > box.y + box.height) continue;
+      if (countries[i].isPointInFill(spot)) return code;
+    }
+    return null;
   }
 
   // The country to choose for a tap at this spot. If the spot is a country
@@ -543,13 +733,16 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // before asking what was tapped.
     clearTimeout(stillTimer);
     svg.classList.remove('is-moving');
-    onPick({ code: pickAt(screenX, screenY), point: screenToMap(screenX, screenY) });
+    const [x, y] = screenToMap(screenX, screenY);
+    // The tap position, wrapped back onto the main map (in case the tap
+    // was on one of the copies either side).
+    onPick({ code: pickAt(screenX, screenY), point: [wrapX(x), y] });
   }
 
   // Moves the aiming target to sit above a finger at (x, y) and highlights
   // the country under it.
   function aimAt(x, y) {
-    const box = svg.getBoundingClientRect();
+    const box = frameEl.getBoundingClientRect();
     aimTarget.style.left = `${x - box.left}px`;
     aimTarget.style.top = `${y - AIM_OFFSET - box.top}px`;
     const code = pickAt(x, y - AIM_OFFSET);
@@ -590,9 +783,20 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // No button or finger down: this is just the mouse moving over the map.
     // Highlight the country under it.
     if (!before) {
-      if (hoverEnabled && event.pointerType !== 'touch') {
-        const code = codeAt(event.clientX, event.clientY);
-        setHover(canPick(code) ? code : null);
+      // (Not while the map is still settling after a scroll-zoom.)
+      if (hoverEnabled && event.pointerType !== 'touch' && !svg.classList.contains('is-moving')) {
+        // A mouse can report its position many times per screen refresh.
+        // Remember only the latest, and check it once per refresh.
+        hoverSpot = [event.clientX, event.clientY];
+        if (!hoverQueued) {
+          hoverQueued = true;
+          requestAnimationFrame(() => {
+            hoverQueued = false;
+            if (!hoverSpot || !hoverEnabled) return;
+            const code = codeAt(...hoverSpot);
+            setHover(canPick(code) ? code : null);
+          });
+        }
       }
       return;
     }
@@ -671,7 +875,9 @@ export function createMap(svg, mapData, { onPick } = {}) {
 
   // The mouse has left the map: nothing is highlighted any more.
   svg.addEventListener('pointerleave', (event) => {
-    if (event.pointerType !== 'touch') setHover(null);
+    if (event.pointerType === 'touch') return;
+    hoverSpot = null; // cancel any check that's still booked
+    setHover(null);
   });
 
   // Stops a long press on a phone opening the "save image" menu.
@@ -690,8 +896,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // Redraws the marks. Called when they change or the zoom changes, so the
   // arrow and ring always stay the same size on screen.
   function drawMarks() {
-    markLayer.replaceChildren();
-    if (!arrow && !ringCode) return;
+    const marks = []; // the elements to draw
     const pixel = unitsPerPixel(); // one screen pixel, in map units
 
     if (ringCode) {
@@ -699,7 +904,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
       // Big enough to surround the country, but never smaller than a
       // fingertip, so tiny countries get a ring you can actually see.
       const radius = Math.max(Math.hypot(width, height) / 2 + 8 * pixel, 26 * pixel);
-      markLayer.append(
+      marks.push(
         svgElement('circle', {
           class: 'map-ring',
           cx: x + width / 2,
@@ -726,7 +931,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
         .join('');
       const shape = `M${fromX} ${fromY}L${tipX} ${tipY}${head}`;
 
-      markLayer.append(
+      marks.push(
         // Drawn twice: a pale thick copy underneath makes the dark arrow
         // stand out against any background.
         svgElement('path', { class: 'map-arrow map-arrow-edge', d: shape }),
@@ -735,6 +940,8 @@ export function createMap(svg, mapData, { onPick } = {}) {
         svgElement('circle', { class: 'map-arrow-spot', cx: fromX, cy: fromY, r: 5 * pixel })
       );
     }
+
+    fillLayerEverywhere('markLayer', marks);
   }
 
   // ===========================================================================
@@ -763,14 +970,16 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // 'wrong' or 'right' (the full list and their colours are in map.css),
     // or null to clear it.
     setState(code, state) {
-      for (const element of [shapes[code], rings[code]]) {
-        if (!element) continue;
-        if (state) element.dataset.state = state;
-        else delete element.dataset.state;
+      for (const copy of copies) {
+        for (const element of [copy.shapes[code], copy.rings[code]]) {
+          if (!element) continue;
+          if (state) element.dataset.state = state;
+          else delete element.dataset.state;
+        }
+        // Move a coloured country to the front so its outline isn't
+        // covered by its neighbours.
+        if (state) copy.group.insertBefore(copy.shapes[code], copy.ringLayer);
       }
-      // Move a coloured country to the front so its outline isn't covered
-      // by its neighbours.
-      if (state) world.insertBefore(shapes[code], ringLayer);
       // If it's the highlighted country, redraw the highlight in its new colour.
       if (code === hoverCode) drawHover();
     },
@@ -781,10 +990,12 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // say). Pass null to make every country playable again.
     setPlayable(codes) {
       playable = codes ? new Set(codes) : null;
-      for (const [code, shape] of Object.entries(shapes)) {
-        const out = !canPick(code);
-        shape.classList.toggle('is-out', out);
-        rings[code]?.classList.toggle('is-out', out);
+      for (const copy of copies) {
+        for (const [code, shape] of Object.entries(copy.shapes)) {
+          const out = !canPick(code);
+          shape.classList.toggle('is-out', out);
+          copy.rings[code]?.classList.toggle('is-out', out);
+        }
       }
       if (hoverCode && !canPick(hoverCode)) setHover(null);
     },
@@ -815,10 +1026,15 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // Is this country fully in view at the moment?
     isOnScreen,
 
+    // Of a map point and its copies either side (the world wraps round),
+    // the one nearest another point. Games use this to give directions the
+    // short way round.
+    nearestCopy,
+
     // For the + and - buttons: zooms around the middle of the map.
     // factor below 1 zooms in, above 1 zooms out.
     zoomBy(factor) {
-      const box = svg.getBoundingClientRect();
+      const box = frameEl.getBoundingClientRect();
       const target = zoomedView(
         factor,
         box.left + box.width / 2,
@@ -829,8 +1045,10 @@ export function createMap(svg, mapData, { onPick } = {}) {
     },
 
     // Draws an arrow starting at one map point and aimed at another.
+    // (It aims the short way round: from Alaska towards eastern Russia it
+    // points west across the Bering Strait, not east across the world.)
     showArrow(from, to) {
-      arrow = { from, to };
+      arrow = { from, to: nearestCopy(to, from) };
       drawMarks();
     },
 

@@ -293,7 +293,9 @@ function handlePick({ code, point }) {
   map.setState(code, 'wrong');
 
   // Point the way: an arrow on the map, plus distance and direction in words.
-  const capitalPoint = map.project(capital.lon, capital.lat);
+  // The capital, measured the short way round the globe from the tap
+  // (the map wraps round, so across the Pacific can be shorter).
+  const capitalPoint = map.nearestCopy(map.project(capital.lon, capital.lat), point);
   map.showArrow(point, capitalPoint);
   const distance = formatDistance(
     distanceKm(map.unproject(point[0], point[1]), [capital.lon, capital.lat])
