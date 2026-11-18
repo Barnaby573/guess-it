@@ -1,7 +1,7 @@
 // shared/regions.js
 //
 // The regions a player can choose in the map games (Capital Drop and
-// Learn Countries). Every one of the 195 countries belongs to exactly one
+// Learn Countries). Every one of the 197 countries belongs to exactly one
 // region, so playing all the regions covers the whole world once.
 //
 // Countries are listed by their 2-letter ISO code. To move a country,
@@ -14,7 +14,7 @@ const REGION_LIST = [
     emoji: '🗼',
     codes: [
       'GB', 'IE', 'FR', 'ES', 'PT', 'AD', 'MC', 'BE', 'NL', 'LU', 'DE',
-      'CH', 'AT', 'LI', 'IT', 'SM', 'MT', 'DK', 'NO', 'SE', 'FI', 'IS',
+      'CH', 'AT', 'LI', 'IT', 'SM', 'VA', 'MT', 'DK', 'NO', 'SE', 'FI', 'IS',
     ],
   },
   {
@@ -77,7 +77,7 @@ const REGION_LIST = [
     label: 'East & Southeast Asia',
     emoji: '🏯',
     codes: [
-      'CN', 'MN', 'KP', 'KR', 'JP', 'MM', 'TH', 'LA', 'KH', 'VN', 'MY',
+      'CN', 'TW', 'MN', 'KP', 'KR', 'JP', 'MM', 'TH', 'LA', 'KH', 'VN', 'MY',
       'SG', 'BN', 'ID', 'PH', 'TL',
     ],
   },

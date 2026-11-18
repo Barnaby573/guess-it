@@ -32,6 +32,8 @@ const NICKNAMES = {
   PG: ['PNG'],
   BS: ['Bahamas'],
   GM: ['Gambia'],
+  VA: ['Vatican', 'Holy See'],
+  TW: ['Republic of China'],
   SA: ['Saudi'],
 };
 

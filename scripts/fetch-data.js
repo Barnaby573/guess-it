@@ -94,6 +94,24 @@ const FRIENDLY_NAMES = {
   YE: 'Yemen',
 };
 
+// Countries the World Bank doesn't list, added by hand so the map games
+// (Capital Drop, Learn Countries, Border Chain) can include them.
+// They have no stats, so Higher or Lower automatically leaves them out.
+const EXTRA_COUNTRIES = [
+  {
+    name: 'Vatican City',
+    iso2: 'VA',
+    capital: { name: 'Vatican City', lat: 41.9029, lon: 12.4534 },
+    stats: {},
+  },
+  {
+    name: 'Taiwan',
+    iso2: 'TW',
+    capital: { name: 'Taipei', lat: 25.033, lon: 121.5654 },
+    stats: {},
+  },
+];
+
 // Corrections to the World Bank's capital cities. Keyed by 2-letter ISO
 // code. Each entry only lists what needs changing: the name, the position
 // (lat = latitude, lon = longitude), or both.
@@ -234,8 +252,12 @@ async function main() {
   // Drop countries that ended up with no stats at all, then sort by name.
   // A country missing just one stat is kept; the game will simply not use
   // it for that category.
+  //
+  // Then add the countries the World Bank doesn't list (see
+  // EXTRA_COUNTRIES at the top of this file).
   const countries = [...countriesByIso3.values()]
     .filter((country) => Object.keys(country.stats).length > 0)
+    .concat(EXTRA_COUNTRIES)
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const output = {

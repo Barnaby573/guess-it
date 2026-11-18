@@ -178,7 +178,7 @@ async function download(url) {
 async function main() {
   const dataFolder = resolve(import.meta.dirname, '..', 'data');
 
-  // Our own list of countries, so the map uses the same 195 as every game.
+  // Our own list of countries, so the map uses the same countries as every game.
   const ours = JSON.parse(
     await readFile(resolve(dataFolder, 'countries.json'), 'utf8')
   );
@@ -270,6 +270,37 @@ async function main() {
     }
   }
 
+  // ---- A colour for each country ----------------------------------------------
+  // Countries you get right are filled with their own colour, like a
+  // classroom wall map (the colours themselves are in shared/map.css).
+  // Neighbours must never share a colour, or a filled-in region would look
+  // like one big blob. This is "graph colouring": go through the countries,
+  // the ones with the most neighbours first, and give each the first colour
+  // none of its neighbours has. Each search starts from a different colour,
+  // so the colours are spread evenly rather than piling up on the first one.
+  // Needs data/borders.json, so run "npm run fetch-borders" first.
+  const COLOURS = 7;
+  const borders = JSON.parse(await readFile(resolve(dataFolder, 'borders.json'), 'utf8'));
+  const neighboursOf = (code) => borders[code] ?? [];
+  const colourOrder = Object.keys(countries).sort(
+    (a, b) => neighboursOf(b).length - neighboursOf(a).length || a.localeCompare(b)
+  );
+  const clashes = [];
+  for (const [index, code] of colourOrder.entries()) {
+    const taken = new Set(neighboursOf(code).map((neighbour) => countries[neighbour]?.colour));
+    let chosen = null;
+    for (let step = 0; step < COLOURS && chosen === null; step++) {
+      const colour = (index + step) % COLOURS;
+      if (!taken.has(colour)) chosen = colour;
+    }
+    // (If every colour were taken, share one and report it below.)
+    if (chosen === null) {
+      chosen = index % COLOURS;
+      clashes.push(code);
+    }
+    countries[code].colour = chosen;
+  }
+
   // ---- Save -------------------------------------------------------------------
   const output = {
     source: 'Natural Earth (naturalearthdata.com), public domain. 110m, with 50m for small countries.',
@@ -286,11 +317,16 @@ async function main() {
   const tiny = Object.keys(countries).filter((code) => countries[code].tiny);
   console.log(`\nSaved data/map.json (${Math.round(text.length / 1024)} KB)`);
   console.log(`  map size: ${WIDTH} x ${HEIGHT} units`);
-  console.log(`  ${totalPoints} points in the 195 countries`);
+  console.log(`  ${totalPoints} points in the ${ourCodes.size} countries`);
   console.log(`  ${fromDetailed.length} small countries taken from the detailed map: ${fromDetailed.join(', ')}`);
   console.log(`  ${Object.keys(countries).length} of ${ourCodes.size} countries have a shape`);
   console.log(`  ${tiny.length} are tiny and get a dot: ${tiny.join(', ')}`);
   if (missing.length > 0) console.log(`  no shape for: ${missing.join(', ')}`);
+  console.log(
+    clashes.length === 0
+      ? `  coloured with ${COLOURS} colours, no neighbours sharing`
+      : `  WARNING, these share a colour with a neighbour: ${clashes.join(', ')}`
+  );
 
   // ---- The detailed map, for zoomed-in views ---------------------------------
   // Every country from the 50m map, with all its islands (Greece's, Croatia's,
@@ -333,7 +369,7 @@ async function main() {
 
   const noDetail = [...ourCodes].filter((code) => !detail.countries[code]);
   console.log(`\nSaved data/map-detail.json (${Math.round(detailText.length / 1024)} KB)`);
-  console.log(`  ${detailPoints} points in the 195 countries (used when zoomed in)`);
+  console.log(`  ${detailPoints} points in the ${ourCodes.size} countries (used when zoomed in)`);
   if (noDetail.length > 0) console.log(`  no detailed shape for: ${noDetail.join(', ')}`);
 }
 

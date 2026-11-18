@@ -193,7 +193,13 @@ export function createMap(svg, mapData, { onPick } = {}) {
     // 4. The countries. Each remembers its code in "data-code".
     const shapes = {}; // code -> the country's <path>
     for (const code of Object.keys(mapData.countries)) {
-      shapes[code] = svgElement('path', { class: 'map-country', 'data-code': code });
+      // data-colour: the country's own colour for when it's answered right
+      // (worked out by scripts/fetch-map.js; the colours are in map.css).
+      shapes[code] = svgElement('path', {
+        class: 'map-country',
+        'data-code': code,
+        'data-colour': mapData.countries[code].colour ?? 0,
+      });
       group.append(shapes[code]);
     }
 
@@ -211,6 +217,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
         cx: x + width / 2,
         cy: y + height / 2,
         'data-code': code,
+        'data-colour': shape.colour ?? 0,
       });
       ringLayer.append(rings[code]);
     }

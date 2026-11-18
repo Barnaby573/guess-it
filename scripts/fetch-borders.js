@@ -6,7 +6,7 @@
 // Run it with:   npm run fetch-borders
 //
 // Run "npm run fetch-data" first: this script only keeps countries that are
-// already in data/countries.json, so every game uses the same 195 countries.
+// already in data/countries.json, so every game uses the same countries.
 //
 // Source: the open "mledoze/countries" dataset on GitHub.
 
@@ -58,7 +58,7 @@ async function main() {
 
     for (const neighbour3 of entry.borders) {
       const neighbour = iso3ToIso2.get(neighbour3);
-      // Skip neighbours that aren't in our 195 (e.g. Hong Kong, Gibraltar).
+      // Skip neighbours that aren't in our list (e.g. Hong Kong, Gibraltar).
       if (!ourCodes.has(neighbour)) continue;
 
       // Record the border in BOTH directions, so if France borders Spain
