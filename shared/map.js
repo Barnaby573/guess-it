@@ -130,13 +130,6 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // Countries smaller than this (in map units) can get a ring.
   const RING_COUNTRY_SIZE = 40;
 
-  // Shapes shared by every copy, worked out once.
-  // All the land in one shape, for the shallow-water band (layer 1 below).
-  const allLand =
-    mapData.background +
-    Object.values(mapData.countries)
-      .map((shape) => shape.d)
-      .join('');
   // Latitude and longitude lines, every 15 degrees (layer 2 below).
   let gridLines = '';
   for (let longitude = -180; longitude <= 180; longitude += 15) {
@@ -146,6 +139,14 @@ export function createMap(svg, mapData, { onPick } = {}) {
   for (let latitude = -45; latitude <= 75; latitude += 15) {
     const [, y] = project(0, latitude);
     gridLines += `M0 ${y}H${mapData.width}`; // a horizontal line
+  }
+
+  // Splits a path made of many separate shapes (like all the land that
+  // isn't in play: Greenland, Western Sahara, Taiwan...) into one path per
+  // shape. Separate pieces let the browser skip the ones that are off
+  // screen. Each shape starts with "M".
+  function piecesOf(d) {
+    return d.split(/(?=M)/).filter(Boolean);
   }
 
   // Draws one complete copy of the map, moved sideways by "shift" map
@@ -160,24 +161,39 @@ export function createMap(svg, mapData, { onPick } = {}) {
   function drawCopy(shift) {
     const group = svgElement('g', { transform: `translate(${shift} 0)` });
 
-    // 1. Shallow water. All the land drawn twice with thick pale outlines.
-    //    The land layers above cover the inner half, leaving a soft pale
-    //    band around every coast. See .map-halo in map.css.
-    group.append(
-      svgElement('path', { class: 'map-halo map-halo-wide', d: allLand }),
-      svgElement('path', { class: 'map-halo map-halo-narrow', d: allLand })
-    );
+    // 1. Shallow water: each piece of land drawn again underneath with a
+    //    thick pale outline, twice (wide and faint, then narrow and
+    //    strong). The land above covers the inner half, leaving a soft pale
+    //    band round every coast. See .map-halo in map.css. One piece per
+    //    country (filled in by setOutlines below), so off-screen ones are
+    //    skipped.
+    const haloWide = svgElement('g', { class: 'map-halo map-halo-wide' });
+    const haloNarrow = svgElement('g', { class: 'map-halo map-halo-narrow' });
+    const halos = {}; // code -> [wide piece, narrow piece]
+    for (const code of Object.keys(mapData.countries)) {
+      halos[code] = [svgElement('path'), svgElement('path')];
+      haloWide.append(halos[code][0]);
+      haloNarrow.append(halos[code][1]);
+    }
+    // The halo round land that isn't in play, also in pieces.
+    const haloWideBackground = svgElement('g');
+    const haloNarrowBackground = svgElement('g');
+    haloWide.append(haloWideBackground);
+    haloNarrow.append(haloNarrowBackground);
+    group.append(haloWide, haloNarrow);
 
     // 2. Latitude and longitude lines.
     group.append(svgElement('path', { class: 'map-grid', d: gridLines }));
 
-    // 3. Land that isn't one of our 195 countries (Greenland, for example).
-    group.append(svgElement('path', { class: 'map-background', d: mapData.background }));
+    // 3. Land that isn't one of our 195 countries (Greenland, for example),
+    //    in pieces.
+    const background = svgElement('g');
+    group.append(background);
 
     // 4. The countries. Each remembers its code in "data-code".
     const shapes = {}; // code -> the country's <path>
-    for (const [code, shape] of Object.entries(mapData.countries)) {
-      shapes[code] = svgElement('path', { class: 'map-country', d: shape.d, 'data-code': code });
+    for (const code of Object.keys(mapData.countries)) {
+      shapes[code] = svgElement('path', { class: 'map-country', 'data-code': code });
       group.append(shapes[code]);
     }
 
@@ -209,11 +225,37 @@ export function createMap(svg, mapData, { onPick } = {}) {
     group.append(markLayer);
 
     world.append(group);
-    return { group, shapes, rings, ringLayer, hoverLayer, markLayer };
+    return {
+      group, shapes, rings, ringLayer, hoverLayer, markLayer,
+      halos, background, haloWideBackground, haloNarrowBackground,
+    };
+  }
+
+  // Gives every country (and the land not in play) its outline, in every
+  // copy. outlines is either the everyday map (map.json) or the detailed
+  // one (map-detail.json), which has every island; see DETAIL below.
+  function setOutlines(outlines) {
+    for (const copy of copies) {
+      for (const code of Object.keys(mapData.countries)) {
+        // The detailed map stores outlines as plain text; map.json stores
+        // them as { d, box }. Fall back to the everyday outline if missing.
+        const d = outlines.countries[code]?.d ?? outlines.countries[code] ?? mapData.countries[code].d;
+        copy.shapes[code].setAttribute('d', d);
+        copy.halos[code][0].setAttribute('d', d);
+        copy.halos[code][1].setAttribute('d', d);
+      }
+      const pieces = piecesOf(outlines.background);
+      copy.background.replaceChildren(
+        ...pieces.map((d) => svgElement('path', { class: 'map-background', d }))
+      );
+      copy.haloWideBackground.replaceChildren(...pieces.map((d) => svgElement('path', { d })));
+      copy.haloNarrowBackground.replaceChildren(...pieces.map((d) => svgElement('path', { d })));
+    }
   }
 
   // The copy to the left, the real map, and the copy to the right.
   const copies = [drawCopy(-WORLD_WIDTH), drawCopy(0), drawCopy(WORLD_WIDTH)];
+  setOutlines(mapData);
 
   // Short names for the real map's parts.
   const { group: content, shapes, rings } = copies[1];
@@ -311,6 +353,7 @@ export function createMap(svg, mapData, { onPick } = {}) {
       drawHover();
       drawMarks();
     }
+    updateDetail();
   }
 
   // Never show more than one world's width across the screen. Zoomed out
@@ -358,6 +401,52 @@ export function createMap(svg, mapData, { onPick } = {}) {
   // If the frame changes size (window resized, phone rotated, map shown),
   // redraw so the view still fits.
   new ResizeObserver(() => showView(view)).observe(frameEl);
+
+  // DETAIL AS YOU ZOOM IN
+  // Zoomed in, every country swaps to a detailed outline from
+  // map-detail.json: all of Greece's islands, Croatia's coast, and so on.
+  // Zoomed out, the everyday outlines are used, because with lots of the
+  // world on screen the detail would slow panning down, and be too small
+  // to see anyway.
+  // The swap only happens while the map is still, so a drag or zoom never
+  // stutters part-way through. The detailed file is only downloaded the
+  // first time it's needed.
+  // The zoom levels are in screen pixels per map unit (the whole world
+  // across a laptop-sized map is about 0.18).
+  const DETAIL_FROM = 0.3; // switch to detail at or above this...
+  const DETAIL_UNTIL = 0.25; // ...and back below this (the gap stops flickering)
+  let detailData = null; // map-detail.json, once downloaded
+  let detailLoading = false;
+  let showingDetail = false;
+
+  function updateDetail() {
+    if (!sizedForZoom || svg.classList.contains('is-moving')) return;
+    const wanted = showingDetail ? sizedForZoom >= DETAIL_UNTIL : sizedForZoom >= DETAIL_FROM;
+    if (wanted === showingDetail) return;
+
+    // First time: download the detailed outlines, then try again.
+    if (wanted && !detailData) {
+      if (!detailLoading) {
+        detailLoading = true;
+        import('../data/map-detail.json')
+          .then((module) => {
+            detailData = module.default;
+            updateDetail();
+          })
+          .catch(() => {
+            detailLoading = false; // no connection? try again next time
+          });
+      }
+      return;
+    }
+
+    showingDetail = wanted;
+    setOutlines(wanted ? detailData : mapData);
+    // The outlines have changed, so forget the measured country boxes
+    // (used for working out taps) and redraw any hover highlight.
+    for (const code of Object.keys(shapeBoxes)) delete shapeBoxes[code];
+    drawHover();
+  }
 
   // The smallest box containing all the given countries' mainlands.
   //
@@ -539,11 +628,13 @@ export function createMap(svg, mapData, { onPick } = {}) {
 
     // Keep the country's current colour (e.g. red if already guessed).
     const fill = getComputedStyle(shapes[hoverCode]).fill;
+    // Its current outline (everyday or detailed).
+    const outline = shapes[hoverCode].getAttribute('d');
 
     fillLayerEverywhere('hoverLayer', [
       // A wide pale outline underneath makes it look lifted off the page.
-      svgElement('path', { class: 'map-hover-edge', d: shape.d, transform }),
-      svgElement('path', { class: 'map-hover-shape', d: shape.d, transform, style: `fill: ${fill}` }),
+      svgElement('path', { class: 'map-hover-edge', d: outline, transform }),
+      svgElement('path', { class: 'map-hover-shape', d: outline, transform, style: `fill: ${fill}` }),
     ]);
   }
 
@@ -578,7 +669,10 @@ export function createMap(svg, mapData, { onPick } = {}) {
   function markMoving() {
     svg.classList.add('is-moving');
     clearTimeout(stillTimer);
-    stillTimer = setTimeout(() => svg.classList.remove('is-moving'), 150);
+    stillTimer = setTimeout(() => {
+      svg.classList.remove('is-moving');
+      updateDetail(); // now the map is still, swap outlines if needed
+    }, 150);
   }
 
   // Converts a position on the screen into a position on the map.
@@ -679,7 +773,8 @@ export function createMap(svg, mapData, { onPick } = {}) {
     //    ones are shown).
     const blank = svg.classList.contains('is-blank');
     let nearestRing = null;
-    let nearestDistance = RING_RADIUS * pixel;
+    // (+1.5 pixels, so the ring's drawn outline counts too)
+    let nearestDistance = (RING_RADIUS + 1.5) * pixel;
     for (const [code, ring] of Object.entries(rings)) {
       if (ring.classList.contains('is-hidden') || ring.classList.contains('is-out')) continue;
       if (blank && !ring.dataset.state) continue;
@@ -702,7 +797,9 @@ export function createMap(svg, mapData, { onPick } = {}) {
       const code = countries[i].dataset.code;
       const box = shapeBox(code);
       if (x < box.x || x > box.x + box.width || y < box.y || y > box.y + box.height) continue;
-      if (countries[i].isPointInFill(spot)) return code;
+      // The inside counts, and so does the outline itself (as on screen,
+      // where the outline is part of the country's drawing).
+      if (countries[i].isPointInFill(spot) || countries[i].isPointInStroke(spot)) return code;
     }
     return null;
   }
@@ -713,14 +810,23 @@ export function createMap(svg, mapData, { onPick } = {}) {
   function pickAt(screenX, screenY) {
     const direct = codeAt(screenX, screenY);
     if (direct) return direct;
+    // Check a ring of 12 spots around the tap, close in first, then
+    // further out. At the first distance where any country is found,
+    // choose the one found most often: the country that surrounds the
+    // tap the most, not just whichever happened to be checked first.
     for (const distance of [6, 10, 14]) {
+      const found = {}; // code -> how many of the 12 spots hit it
       for (let step = 0; step < 12; step++) {
         const angle = (step / 12) * 2 * Math.PI;
         const code = codeAt(
           screenX + Math.cos(angle) * distance,
           screenY + Math.sin(angle) * distance
         );
-        if (canPick(code)) return code;
+        if (canPick(code)) found[code] = (found[code] ?? 0) + 1;
+      }
+      const codes = Object.keys(found);
+      if (codes.length > 0) {
+        return codes.reduce((best, code) => (found[code] > found[best] ? code : best));
       }
     }
     return null;

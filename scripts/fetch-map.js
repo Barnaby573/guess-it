@@ -291,6 +291,50 @@ async function main() {
   console.log(`  ${Object.keys(countries).length} of ${ourCodes.size} countries have a shape`);
   console.log(`  ${tiny.length} are tiny and get a dot: ${tiny.join(', ')}`);
   if (missing.length > 0) console.log(`  no shape for: ${missing.join(', ')}`);
+
+  // ---- The detailed map, for zoomed-in views ---------------------------------
+  // Every country from the 50m map, with all its islands (Greece's, Croatia's,
+  // Indonesia's...). The game only loads this when you zoom in, where there
+  // are few enough countries on screen to draw the detail smoothly.
+  // One decimal place is kept, so coastlines stay smooth close up.
+  // It only holds the outlines: everything else (boxes, tiny flags) comes
+  // from map.json.
+  const detailPaths = {};
+  const detailBackground = [];
+  let detailPoints = 0;
+  for (const feature of detailed.features) {
+    const code = codeOf(feature);
+    if (code === 'AQ') continue; // Antarctica is off the bottom of our map
+    for (const polygon of polygonsOf(feature)) {
+      const isOurs =
+        ourCodes.has(code) && !(code === 'FR' && isOutsideFranceMainland(polygon));
+      for (const ring of polygon) {
+        const path = ringToPath(ring.map(project), 1);
+        if (!path) continue;
+        if (isOurs) {
+          if (!detailPaths[code]) detailPaths[code] = [];
+          detailPaths[code].push(path);
+          detailPoints += ring.length;
+        } else {
+          detailBackground.push(path);
+        }
+      }
+    }
+  }
+  const detail = {
+    source: 'Natural Earth (naturalearthdata.com), public domain. 50m.',
+    background: detailBackground.join(''),
+    countries: Object.fromEntries(
+      Object.entries(detailPaths).map(([code, paths]) => [code, paths.join('')])
+    ),
+  };
+  const detailText = JSON.stringify(detail);
+  await writeFile(resolve(dataFolder, 'map-detail.json'), detailText + '\n');
+
+  const noDetail = [...ourCodes].filter((code) => !detail.countries[code]);
+  console.log(`\nSaved data/map-detail.json (${Math.round(detailText.length / 1024)} KB)`);
+  console.log(`  ${detailPoints} points in the 195 countries (used when zoomed in)`);
+  if (noDetail.length > 0) console.log(`  no detailed shape for: ${noDetail.join(', ')}`);
 }
 
 main().catch((error) => {

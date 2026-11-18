@@ -77,10 +77,10 @@
 }
 
 /* The shallow-water band round the coasts (.map-halo, below) is the most
-   expensive part of the map to draw: every coastline in the world, twice,
-   with thick lines. Measured on a Surface Go, hiding it while the map moves
-   took panning from about 12 to about 47 frames a second. It reappears as
-   soon as the map stops. */
+   expensive part of the map to draw: every coastline, twice, with thick
+   lines. Measured on a Surface Go, hiding it while the map moves took
+   panning from about 12 to about 47 frames a second. It reappears as soon
+   as the map stops. */
 .map-frame svg.is-moving .map-halo {
   display: none;
 }
@@ -115,7 +115,11 @@
 /* The pale band of shallow water around the coasts. It is a copy of all
    the land, drawn underneath with a very thick pale outline, so only the
    part sticking out past the coast can be seen. Two layers (a wide faint
-   one and a narrow strong one) make the edge fade softly. */
+   one and a narrow strong one) make the edge fade softly.
+   Each layer is a group holding one piece per country (see map.js), so
+   the browser can skip pieces that are off screen. The pieces take their
+   colour and width from the group. stroke-opacity (not opacity) keeps the
+   group from having to be drawn separately and blended in. */
 .map-halo {
   fill: none;
   stroke: var(--map-shallows);
@@ -123,12 +127,12 @@
 
 .map-halo-wide {
   stroke-width: calc(14 * var(--px, 1));
-  opacity: 0.45;
+  stroke-opacity: 0.45;
 }
 
 .map-halo-narrow {
   stroke-width: calc(6 * var(--px, 1));
-  opacity: 0.9;
+  stroke-opacity: 0.9;
 }
 
 /* Latitude and longitude lines */
