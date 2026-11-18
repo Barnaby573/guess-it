@@ -31,17 +31,18 @@
   --loose: #cf9426; /* amber */
 
   /* Countries answered right get their own colour, like a classroom wall
-     map. Each country has a number from 0 to 6 (data-colour), chosen so
-     that neighbours never share one (see scripts/fetch-map.js). These are
-     muted atlas shades, kept clear of reds and oranges so they can't be
-     mistaken for a wrong answer. */
-  --country-0: #a7c48e; /* sage */
-  --country-1: #e6cf84; /* mustard */
-  --country-2: #a3bcd9; /* dusty blue */
-  --country-3: #8fc5b8; /* teal */
-  --country-4: #bcaad9; /* lavender */
-  --country-5: #cfd08f; /* olive */
-  --country-6: #9aa6d8; /* periwinkle */
+     map. Each country has a number from 0 to 7 (data-colour), chosen so
+     that neighbours never share one (see scripts/fetch-map.js). Bright
+     pastels, kept clear of reds and oranges so they can't be mistaken for
+     a wrong answer. */
+  --country-0: #8de0b5; /* mint */
+  --country-1: #ffe27a; /* butter */
+  --country-2: #8cc8ff; /* sky */
+  --country-3: #c3a2ff; /* lilac */
+  --country-4: #6fdcd6; /* aqua */
+  --country-5: #c5ec7f; /* lime */
+  --country-6: #a3aeff; /* periwinkle */
+  --country-7: #f2c4ff; /* orchid */
 }
 
 /* ---- The frame the map sits in ------------------------------------------- *
@@ -244,6 +245,7 @@
 [data-state='right'][data-colour='4'] { --state-colour: var(--country-4); }
 [data-state='right'][data-colour='5'] { --state-colour: var(--country-5); }
 [data-state='right'][data-colour='6'] { --state-colour: var(--country-6); }
+[data-state='right'][data-colour='7'] { --state-colour: var(--country-7); }
 [data-state='wrong'],
 [data-state='missed'] {
   --state-colour: var(--wrong);

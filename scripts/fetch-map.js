@@ -279,7 +279,7 @@ async function main() {
   // none of its neighbours has. Each search starts from a different colour,
   // so the colours are spread evenly rather than piling up on the first one.
   // Needs data/borders.json, so run "npm run fetch-borders" first.
-  const COLOURS = 7;
+  const COLOURS = 8; // must match --country-0 to --country-7 in shared/map.css
   const borders = JSON.parse(await readFile(resolve(dataFolder, 'borders.json'), 'utf8'));
   const neighboursOf = (code) => borders[code] ?? [];
   const colourOrder = Object.keys(countries).sort(
