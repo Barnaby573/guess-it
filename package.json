@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "fetch-data": "node scripts/fetch-data.js",
     "fetch-borders": "node scripts/fetch-borders.js",
-    "fetch-map": "node scripts/fetch-map.js"
+    "fetch-map": "node scripts/fetch-map.js",
+    "fetch-footballers": "node scripts/fetch-footballers.js"
   },
   "devDependencies": {
     "vite": "^7.0.0"

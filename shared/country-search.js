@@ -53,7 +53,8 @@ export function normalise(text) {
 // Counts how many single-letter edits (add, remove or swap a letter) it
 // takes to turn one word into another. Called the "Levenshtein distance".
 // "lichtenstien" -> "liechtenstein" is 3... a small number means a likely typo.
-function editDistance(a, b) {
+// (Exported so other searches, like the footballer one, can use it too.)
+export function editDistance(a, b) {
   // previous[j] = edits needed to turn the first i-1 letters of a
   // into the first j letters of b.
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -76,7 +77,7 @@ function editDistance(a, b) {
 // How many typos we forgive depends on how long the typed text is.
 // Short names get no help at all, because "Iran" and "Iraq" are one
 // letter apart and we must never guess between them.
-function allowedTypos(length) {
+export function allowedTypos(length) {
   if (length >= 10) return 3;
   if (length >= 7) return 2;
   if (length >= 5) return 1;
