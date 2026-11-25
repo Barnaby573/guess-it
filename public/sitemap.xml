@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every page on the site, for search engines. Add a line for each new game. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://guess-it-games.vercel.app/</loc></url>
+  <url><loc>https://guess-it-games.vercel.app/games/higher-lower/</loc></url>
+  <url><loc>https://guess-it-games.vercel.app/games/border-chain/</loc></url>
+  <url><loc>https://guess-it-games.vercel.app/games/capital-drop/</loc></url>
+  <url><loc>https://guess-it-games.vercel.app/games/learn-countries/</loc></url>
+  <url><loc>https://guess-it-games.vercel.app/games/career-path/</loc></url>
+</urlset>

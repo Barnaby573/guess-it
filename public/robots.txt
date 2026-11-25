@@ -1,0 +1,5 @@
+# Every page on the site may be crawled and indexed.
+User-agent: *
+Allow: /
+
+Sitemap: https://guess-it-games.vercel.app/sitemap.xml
