@@ -25,6 +25,7 @@ export default defineConfig({
         capitalDrop: resolve(import.meta.dirname, 'games/capital-drop/index.html'),
         learnCountries: resolve(import.meta.dirname, 'games/learn-countries/index.html'),
         careerPath: resolve(import.meta.dirname, 'games/career-path/index.html'),
+        rugbyPath: resolve(import.meta.dirname, 'games/rugby-path/index.html'),
       },
     },
   },

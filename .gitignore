@@ -11,3 +11,6 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Progress saved by "npm run recheck-views" while it runs
+data/.recheck-*.json

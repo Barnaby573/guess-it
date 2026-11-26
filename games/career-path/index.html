@@ -35,12 +35,22 @@
           guess shows the next club. The sooner you get it, the more points.
         </p>
 
+        <!-- 10 / 15 / 20 / 30 years. The buttons are created by game.js -->
+        <p class="picker-label" id="time-label">Players from the last</p>
+        <div
+          class="picker"
+          id="time-picker"
+          role="group"
+          aria-labelledby="time-label"
+        ></div>
+
         <!-- Easy / Medium / Hard / Mixed. The buttons are created by game.js -->
+        <p class="picker-label" id="difficulty-label">Difficulty</p>
         <div
           class="picker"
           id="difficulty-picker"
           role="group"
-          aria-label="Difficulty"
+          aria-labelledby="difficulty-label"
         ></div>
         <!-- e.g. "Current stars and legends everyone knows", filled in by game.js -->
         <p class="difficulty-note" id="difficulty-note"></p>
@@ -74,7 +84,7 @@
         <!-- Top bar: back button, which player, score -->
         <div class="hud">
           <button class="hud-back" id="back-button" type="button">
-            ← Difficulty
+            ← Settings
           </button>
           <div class="hud-scores">
             <span class="pill">Player <strong id="round-number">1</strong>/10</span>
@@ -168,7 +178,7 @@
             Play again
           </button>
           <button class="btn" id="change-difficulty-button" type="button">
-            Change difficulty
+            Change settings
           </button>
           <button class="btn" id="share-button" type="button">Share</button>
         </div>

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Makes the page fit phone screens properly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rugby Career Path: Guess the Rugby Player | Guess It</title>
+    <!-- The site's main address, so search engines don't count copies elsewhere -->
+    <link rel="canonical" href="https://guess-it-games.vercel.app/games/rugby-path/" />
+    <meta
+      name="description"
+      content="Guess the rugby union player from their club career, one club at a time. A free rugby quiz with Easy, Medium and Hard modes. Guess sooner to score more."
+    />
+    <!-- A rugby ball emoji as the little icon in the browser tab -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>"
+    />
+    <!-- Colours the browser's own bar on phones to match the paper -->
+    <meta name="theme-color" content="#f4ecdb" />
+    <!-- Three stylesheets: site-wide, shared by all games, then this game -->
+    <link rel="stylesheet" href="../../shared/base.css" />
+    <link rel="stylesheet" href="../../shared/game-ui.css" />
+    <link rel="stylesheet" href="../career-path/game.css" />
+  </head>
+  <body>
+    <!-- The header is added here by shared/header.js -->
+
+    <main class="container">
+      <!-- ============ SCREEN 1: choose a difficulty ============ -->
+      <section id="start-screen">
+        <h1 class="title">🏉 Rugby Career Path</h1>
+        <p class="subtitle">
+          Guess the rugby union player from the clubs they played for. Each wrong
+          guess shows the next club. The sooner you get it, the more points.
+        </p>
+
+        <!-- 10 / 15 / 20 / 30 years. The buttons are created by game.js -->
+        <p class="picker-label" id="time-label">Players from the last</p>
+        <div
+          class="picker"
+          id="time-picker"
+          role="group"
+          aria-labelledby="time-label"
+        ></div>
+
+        <!-- Easy / Medium / Hard / Mixed. The buttons are created by game.js -->
+        <p class="picker-label" id="difficulty-label">Difficulty</p>
+        <div
+          class="picker"
+          id="difficulty-picker"
+          role="group"
+          aria-labelledby="difficulty-label"
+        ></div>
+        <!-- e.g. "Current stars and legends everyone knows", filled in by game.js -->
+        <p class="difficulty-note" id="difficulty-note"></p>
+
+        <div class="start-actions">
+          <button class="btn btn-primary btn-big" id="play-button" type="button">
+            Play 10 players
+          </button>
+          <p class="start-best" id="start-best"></p>
+        </div>
+
+        <div class="how-to">
+          <h2>How to play</h2>
+          <ul>
+            <li>You start with the player's nation and position.</li>
+            <li>
+              Their clubs then appear in order, one at a time, each time you
+              guess wrong or ask for the next clue.
+            </li>
+            <li>The last clue is their initials.</li>
+            <li>
+              A correct guess on the first clue scores 6 points, then 5, 4,
+              and so on, down to 1.
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ SCREEN 2: the game ============ -->
+      <section id="game-screen" hidden>
+        <!-- Top bar: back button, which player, score -->
+        <div class="hud">
+          <button class="hud-back" id="back-button" type="button">
+            ← Settings
+          </button>
+          <div class="hud-scores">
+            <span class="pill">Player <strong id="round-number">1</strong>/10</span>
+            <span class="pill">Score <strong id="score">0</strong></span>
+          </div>
+        </div>
+
+        <!-- The clue card: nation, position, then the career -->
+        <article class="clue-card" id="clue-card">
+          <div class="clue-top">
+            <img class="nation-flag" id="nation-flag" alt="" />
+            <div>
+              <p class="nation-name" id="nation-name"></p>
+              <p class="position" id="position"></p>
+            </div>
+            <!-- How many points a correct guess is worth right now -->
+            <p class="worth" id="worth"></p>
+          </div>
+
+          <!-- One row per club. Hidden clubs show as blank rows. -->
+          <ol class="career" id="career"></ol>
+
+          <!-- The last clue, shown after every club -->
+          <p class="initials" id="initials" hidden></p>
+
+          <!-- Shown when the round ends: who it was -->
+          <div class="reveal" id="reveal" hidden>
+            <p class="reveal-label" id="reveal-label"></p>
+            <h2 class="reveal-name" id="reveal-name"></h2>
+          </div>
+        </article>
+
+        <!-- Where the player types a name -->
+        <div id="guess-area">
+          <form class="entry-form" id="entry-form" autocomplete="off">
+            <div class="entry-box">
+              <input
+                class="entry-input"
+                id="entry-input"
+                type="text"
+                placeholder="Who is it?"
+                aria-label="Type a rugby player's name"
+                autocomplete="off"
+                autocapitalize="words"
+                spellcheck="false"
+              />
+              <!-- The suggestion list, filled in by game.js as you type -->
+              <div class="suggestions" id="suggestions" hidden></div>
+            </div>
+            <button class="btn btn-primary" type="submit">Guess</button>
+          </form>
+          <button class="btn btn-clue" id="clue-button" type="button">
+            Next clue
+          </button>
+        </div>
+
+        <!-- Shown when the round ends -->
+        <button class="btn btn-primary btn-big" id="next-button" type="button" hidden>
+          Next player →
+        </button>
+
+        <!-- Feedback on the last guess. aria-live makes screen readers read it out. -->
+        <p class="message" id="message" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <!-- ============ Game over pop-up ============ -->
+    <div class="overlay" id="gameover" hidden>
+      <div class="modal" role="dialog" aria-labelledby="gameover-title">
+        <h2 id="gameover-title">Full time</h2>
+        <!-- e.g. "Hard", filled in by game.js -->
+        <p class="mode-label" id="mode-label"></p>
+        <p class="new-best" id="new-best" hidden>🎉 New best score!</p>
+
+        <div class="final-scores">
+          <div>
+            <span class="final-number" id="final-score">0</span>
+            <span class="final-label">Score / 60</span>
+          </div>
+          <div>
+            <span class="final-number" id="final-best">0</span>
+            <span class="final-label">Best</span>
+          </div>
+        </div>
+
+        <!-- One row per player: name and points. Filled in by game.js -->
+        <ol class="results" id="results"></ol>
+
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="play-again-button" type="button">
+            Play again
+          </button>
+          <button class="btn" id="change-difficulty-button" type="button">
+            Change settings
+          </button>
+          <button class="btn" id="share-button" type="button">Share</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- type="module" lets game.js use "import" to load other files -->
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

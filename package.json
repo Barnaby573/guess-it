@@ -10,7 +10,9 @@
     "fetch-data": "node scripts/fetch-data.js",
     "fetch-borders": "node scripts/fetch-borders.js",
     "fetch-map": "node scripts/fetch-map.js",
-    "fetch-footballers": "node scripts/fetch-footballers.js"
+    "fetch-footballers": "node scripts/fetch-careers.js football",
+    "fetch-rugby": "node scripts/fetch-careers.js rugby",
+    "recheck-views": "node scripts/recheck-views.js"
   },
   "devDependencies": {
     "vite": "^7.0.0"

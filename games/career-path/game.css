@@ -10,6 +10,16 @@
   margin: 0 auto;
 }
 
+/* "Players from the last" and "Difficulty" above the two button rows */
+.picker-label {
+  margin: 16px 0 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .difficulty-note {
   min-height: 1.4em;
   margin: 10px 0 0;
