@@ -26,6 +26,7 @@
 
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { applyWikipediaSpells, fetchWikipediaSpells } from './wikipedia-careers.js';
 
 // ---- Which sport? -----------------------------------------------------------
 // "node scripts/fetch-careers.js rugby" loads scripts/sports/rugby.js.
@@ -624,7 +625,22 @@ async function main() {
   // Easy, Medium and Hard itself, once it knows the time frame.)
   await fetchPageViews(kept);
   kept.sort((a, b) => b.fame - a.fame);
-  const chosen = kept.slice(0, sport.playerCount);
+  let chosen = kept.slice(0, sport.playerCount);
+
+  // Some sports' end years are mostly missing on Wikidata, so read them
+  // from each player's Wikipedia info box (see wikipedia-careers.js).
+  // A player can then turn out to have stopped before the era starts.
+  if (sport.endYearsFromWikipedia) {
+    console.log('Checking end years on Wikipedia...');
+    const spells = await fetchWikipediaSpells(chosen.map((player) => player.enTitle));
+    const decided = { current: 0, retired: 0, unknown: 0 };
+    for (const player of chosen) {
+      decided[applyWikipediaSpells(player, spells.get(player.enTitle), thisYear)]++;
+    }
+    console.log('  From Wikipedia:', decided);
+    chosen = chosen.filter((player) => player.lastYear === null || player.lastYear >= oldestFinish);
+  }
+
   for (const player of chosen) {
     delete player.enTitle;
     delete player.pages;

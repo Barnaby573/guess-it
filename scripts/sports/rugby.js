@@ -28,6 +28,11 @@ export default {
   // are listed as members of their national team. Use that team's country.
   nationFromNationalTeam: true,
 
+  // Wikidata rarely gets an end year when a rugby player retires, so most
+  // retired players would look like they're still playing. Read the club
+  // years from each player's Wikipedia info box instead.
+  endYearsFromWikipedia: true,
+
   // Ireland plays as one team for the whole island, so Northern Irish
   // players show as Ireland. (These are Wikidata IDs.)
   nationOverrides: {

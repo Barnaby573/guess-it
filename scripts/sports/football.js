@@ -26,6 +26,10 @@ export default {
   nationFromNationalTeam: false,
   nationOverrides: {},
 
+  // Footballers' end years on Wikidata are well kept, so no need to check
+  // Wikipedia (see endYearsFromWikipedia in rugby.js).
+  endYearsFromWikipedia: false,
+
   // Players to leave out by hand, with the reason.
   leaveOut: {
     'Javier Milei': 'a politician who played youth football',

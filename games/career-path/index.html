@@ -29,20 +29,32 @@
     <main class="container">
       <!-- ============ SCREEN 1: choose a difficulty ============ -->
       <section id="start-screen">
-        <h1 class="title">⚽ Career Path</h1>
+        <h1 class="title">⚽ Football Career Path</h1>
         <p class="subtitle">
           Guess the footballer from the clubs they played for. Each wrong
           guess shows the next club. The sooner you get it, the more points.
         </p>
 
-        <!-- 10 / 15 / 20 / 30 years. The buttons are created by game.js -->
-        <p class="picker-label" id="time-label">Players from the last</p>
+        <!-- Current / Past / Mixed. The buttons are created by career-game.js -->
+        <p class="picker-label" id="era-label">Players</p>
         <div
           class="picker"
-          id="time-picker"
+          id="era-picker"
           role="group"
-          aria-labelledby="time-label"
+          aria-labelledby="era-label"
         ></div>
+
+        <!-- 10 / 15 / 20 / 30 years. The buttons are created by career-game.js.
+             Hidden for current players, who are in every time frame. -->
+        <div id="time-setting">
+          <p class="picker-label" id="time-label">Played in the last</p>
+          <div
+            class="picker"
+            id="time-picker"
+            role="group"
+            aria-labelledby="time-label"
+          ></div>
+        </div>
 
         <!-- Easy / Medium / Hard / Mixed. The buttons are created by game.js -->
         <p class="picker-label" id="difficulty-label">Difficulty</p>

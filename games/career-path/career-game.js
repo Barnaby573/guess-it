@@ -21,7 +21,7 @@
 //
 // How this file is organised:
 //   1. Setup        - imports, settings, and grabbing elements from the page
-//   2. Start screen - the difficulty buttons
+//   2. Start screen - the players, time frame and difficulty buttons
 //   3. A round      - choosing a player and drawing the clue card
 //   4. Guessing     - typed guesses, next clue, ending a round
 //   5. Game over    - the final screen, play again, share
@@ -46,15 +46,28 @@ let search; // turns typed names into players
 const PLAYERS_PER_GAME = 10;
 const MAX_POINTS = 6; // for a correct guess on the very first clue
 
+// The Players buttons. In the data, lastYear is null for a player who is
+// still playing, or the year they stopped. (For rugby, the end years come
+// from Wikipedia, because Wikidata rarely records retirements: see
+// scripts/wikipedia-careers.js.)
+const ERAS = {
+  current: { label: 'Current', words: 'current players' },
+  past: { label: 'Past', words: 'past players' },
+  mixed: { label: 'Mixed', words: '' }, // both: the original game
+};
+const DEFAULT_ERA = 'mixed';
+
 // The time frame buttons: only players who were still playing at some
 // point in the last this-many years can come up. The data file covers 30
 // years (see scripts/fetch-careers.js), so don't go higher than that.
+// Current players are in every time frame, so the buttons are hidden then.
 const TIME_FRAMES = [10, 15, 20, 30];
 const DEFAULT_TIME_FRAME = 20;
 
-// The difficulty buttons. Players in the chosen time frame are sorted from
-// most to least famous, then split into thirds. "third" says which one:
-// 0 = the most famous third, 2 = the least famous. Mixed uses them all.
+// The difficulty buttons. The players who fit the other settings are
+// sorted from most to least famous, then split into thirds. "third" says
+// which one: 0 = the most famous third, 2 = the least famous. Mixed uses
+// them all. (So Past + Easy is the most famous retired players.)
 const DIFFICULTIES = {
   easy: { label: 'Easy', third: 0, note: 'The most famous names.' },
   medium: { label: 'Medium', third: 1, note: 'Well-known, but not quite superstars.' },
@@ -65,7 +78,8 @@ const DEFAULT_DIFFICULTY = 'easy';
 
 // Everything that changes while playing lives in this one object.
 const state = {
-  difficulty: DEFAULT_DIFFICULTY, // the saved choices are loaded at the start
+  era: DEFAULT_ERA, // the saved choices are loaded at the start
+  difficulty: DEFAULT_DIFFICULTY,
   timeFrame: DEFAULT_TIME_FRAME,
   queue: [], // the 10 players for this game
   roundIndex: 0, // which of the 10 we're on (0 to 9)
@@ -80,6 +94,8 @@ const state = {
 // Grab the page elements we need, once.
 const el = {
   startScreen: document.getElementById('start-screen'),
+  eraPicker: document.getElementById('era-picker'),
+  timeSetting: document.getElementById('time-setting'),
   timePicker: document.getElementById('time-picker'),
   difficultyPicker: document.getElementById('difficulty-picker'),
   difficultyNote: document.getElementById('difficulty-note'),
@@ -130,7 +146,7 @@ function shuffled(list) {
   return copy;
 }
 
-// Loads a saved choice (difficulty or time frame). "options" is the list
+// Loads a saved choice (players, difficulty or time frame). "options" is the list
 // or object of allowed values. Only trust the saved value if it's still
 // one of them, otherwise use the fallback.
 function loadChoice(name, options, fallback) {
@@ -141,29 +157,43 @@ function loadChoice(name, options, fallback) {
 
 // The players who can come up with the current settings.
 function playerPool() {
-  // 1. Only players still playing in the time frame. lastYear is the year
-  //    they stopped, or null if they're still playing.
+  // 1. Current, past or both. lastYear is the year they stopped, or null
+  //    if they're still playing. Past players must have stopped within
+  //    the time frame.
   const firstYear = new Date().getFullYear() - state.timeFrame;
-  const inTimeFrame = data.players
-    .filter((player) => player.lastYear === null || player.lastYear >= firstYear)
-    .sort((a, b) => b.fame - a.fame); // most famous first
+  const isCurrent = (player) => player.lastYear === null;
+  const inTimeFrame = (player) => isCurrent(player) || player.lastYear >= firstYear;
+  const fits = {
+    current: isCurrent,
+    past: (player) => !isCurrent(player) && inTimeFrame(player),
+    mixed: inTimeFrame,
+  }[state.era];
+  const players = data.players.filter(fits).sort((a, b) => b.fame - a.fame); // most famous first
 
   // 2. Take the right third for the difficulty (Mixed takes them all).
   const { third } = DIFFICULTIES[state.difficulty];
-  if (third === null) return inTimeFrame;
-  const size = Math.ceil(inTimeFrame.length / 3);
-  return inTimeFrame.slice(third * size, (third + 1) * size);
+  if (third === null) return players;
+  const size = Math.ceil(players.length / 3);
+  return players.slice(third * size, (third + 1) * size);
 }
 
-// Best scores are saved separately for each difficulty AND time frame,
-// e.g. "hard-20", so a Hard score never competes with an Easy one.
+// Best scores are saved separately for each combination of settings, so
+// a Hard score never competes with an Easy one. Mixed players keep the
+// key from before the Players buttons existed ("hard-20"), so nobody's
+// best score disappears. Current players don't depend on the time frame.
 function bestKey() {
+  if (state.era === 'current') return `current-${state.difficulty}`;
+  if (state.era === 'past') return `past-${state.difficulty}-${state.timeFrame}`;
   return `${state.difficulty}-${state.timeFrame}`;
 }
 
-// e.g. "Hard · last 20 years"
+// e.g. "Hard · past players · last 20 years", "Easy · current players",
+// or for Mixed just "Hard · last 20 years".
 function settingsLabel() {
-  return `${DIFFICULTIES[state.difficulty].label} · last ${state.timeFrame} years`;
+  const parts = [DIFFICULTIES[state.difficulty].label];
+  if (ERAS[state.era].words) parts.push(ERAS[state.era].words);
+  if (state.era !== 'current') parts.push(`last ${state.timeFrame} years`);
+  return parts.join(' · ');
 }
 
 // The web address of a nation's flag. England, Scotland, Wales and
@@ -206,7 +236,16 @@ function showStartScreen() {
   el.gameScreen.hidden = true;
   el.startScreen.hidden = false;
 
-  // The 10 / 15 / 20 / 30 years buttons.
+  // The Current / Past / Mixed buttons.
+  fillPicker(
+    el.eraPicker,
+    Object.entries(ERAS).map(([key, era]) => ({ value: key, label: era.label })),
+    'era',
+    'era'
+  );
+
+  // The 10 / 15 / 20 / 30 years buttons. Not needed for current players.
+  el.timeSetting.hidden = state.era === 'current';
   fillPicker(
     el.timePicker,
     TIME_FRAMES.map((years) => ({ value: years, label: `${years} years` })),
@@ -598,6 +637,7 @@ export function startCareerGame(config) {
   // so the suggestions don't give away which players are in play.
   search = createPlayerSearch(data.players);
 
+  state.era = loadChoice('era', ERAS, DEFAULT_ERA);
   state.difficulty = loadChoice('difficulty', DIFFICULTIES, DEFAULT_DIFFICULTY);
   state.timeFrame = loadChoice('time-frame', TIME_FRAMES, DEFAULT_TIME_FRAME);
 
